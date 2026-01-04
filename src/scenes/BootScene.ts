@@ -1,3 +1,5 @@
+import { getAllKodamons } from '@/data';
+import { SpriteGenerator } from '@/utils';
 import Phaser from 'phaser';
 
 export class BootScene extends Phaser.Scene {
@@ -6,8 +8,20 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
+    this.crearBarraDeCarga();
+  }
+
+  create(): void {
+    this.generarSprites();
+    this.scene.start('MenuScene');
+  }
+  private crearBarraDeCarga(): void {
+    const { width, height } = this.cameras.main;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
     const loadingText = this.add
-      .text(256, 192, 'Cargando...', {
+      .text(centerX, centerY, 'Cargando...', {
         fontFamily: '"Press Start 2P"',
         fontSize: '12px',
         color: '#ffffff',
@@ -17,12 +31,12 @@ export class BootScene extends Phaser.Scene {
     const progressBar = this.add.graphics();
     const progressBox = this.add.graphics();
     progressBox.fillStyle(0x222222, 0.8);
-    progressBox.fillRect(156, 210, 200, 20);
+    progressBox.fillRect(centerX - 100, centerY + 20, 200, 20);
 
     this.load.on('progress', (value: number) => {
       progressBar.clear();
       progressBar.fillStyle(0x00ff00, 1);
-      progressBar.fillRect(160, 214, 192 * value, 12);
+      progressBar.fillRect(centerX - 96, centerY + 24, 192 * value, 12);
     });
 
     this.load.on('complete', () => {
@@ -31,8 +45,15 @@ export class BootScene extends Phaser.Scene {
       loadingText.destroy();
     });
   }
+  private generarSprites(): void {
+    const generator = new SpriteGenerator(this, 64);
+    const kodamons = getAllKodamons();
 
-  create(): void {
-    this.scene.start('MenuScene');
+    // Generar sprite para cada Kodamon
+    kodamons.forEach((kodamon) => {
+      generator.generate(kodamon.id, kodamon.tipo);
+    });
+
+    console.log(`[BootScene] ${kodamons.length} sprites generados`);
   }
 }

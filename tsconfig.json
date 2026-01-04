@@ -31,7 +31,7 @@
       "@ui/*": ["./src/ui/*"],
       "@data/*": ["./src/data/*"],
       "@systems/*": ["./src/systems/*"],
-      "@types/*": ["./src/types/*"],
+      "@game-types/*": ["./src/types/*"],
       "@utils/*": ["./src/utils/*"],
       "@assets/*": ["./src/assets/*"]
     }
