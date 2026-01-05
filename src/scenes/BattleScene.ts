@@ -2,11 +2,12 @@ import Phaser from 'phaser';
 import type { KodamonData, KodamonBatalla, Movimiento } from '@game-types/index';
 import {
   getRandomKodamon,
-  getTipoConfig,
   getMovimiento,
   getEfectividad,
   getTextoEfectividad,
 } from '@data/index';
+import { BattleEffects } from '@systems/index';
+import { HealthBar, MoveButton, DialogBox } from '@ui/index';
 
 type EstadoBatalla =
   | 'INTRO'
@@ -21,29 +22,31 @@ export class BattleScene extends Phaser.Scene {
   private jugador!: KodamonBatalla;
   private enemigo!: KodamonBatalla;
   private estado: EstadoBatalla = 'INTRO';
+  private fondoId: string = 'battle-bg-1';
+
+  // Sistema de efectos
+  private effects!: BattleEffects;
 
   // Elementos visuales
   private jugadorSprite!: Phaser.GameObjects.Image;
   private enemigoSprite!: Phaser.GameObjects.Image;
-  private jugadorHpBar!: Phaser.GameObjects.Graphics;
-  private enemigoHpBar!: Phaser.GameObjects.Graphics;
-  private dialogoBox!: Phaser.GameObjects.Graphics;
-  private dialogoText!: Phaser.GameObjects.Text;
-  private botonesMovimientos: Phaser.GameObjects.Container[] = [];
 
-  // UI elementos
-  private jugadorNombreText!: Phaser.GameObjects.Text;
-  private jugadorHpText!: Phaser.GameObjects.Text;
-  private enemigoNombreText!: Phaser.GameObjects.Text;
-  private enemigoHpText!: Phaser.GameObjects.Text;
+  // UI Components
+  private jugadorHpBar!: HealthBar;
+  private enemigoHpBar!: HealthBar;
+  private dialogBox!: DialogBox;
+  private moveButtons: MoveButton[] = [];
 
   constructor() {
     super({ key: 'BattleScene' });
   }
 
-  init(data: { jugador: KodamonData }): void {
+  init(data: { jugador: KodamonData; fondoId?: string }): void {
     // Crear estado de batalla para el jugador
     this.jugador = this.crearKodamonBatalla(data.jugador);
+
+    // Guardar el fondo seleccionado
+    this.fondoId = data.fondoId || 'battle-bg-1';
 
     // Seleccionar enemigo aleatorio (diferente al jugador)
     let enemigoData: KodamonData;
@@ -57,10 +60,13 @@ export class BattleScene extends Phaser.Scene {
 
   create(): void {
     this.cameras.main.fadeIn(400);
+
+    // Inicializar sistema de efectos
+    this.effects = new BattleEffects(this);
+
     this.dibujarFondo();
     this.crearSprites();
-    this.crearBarrasHP();
-    this.crearDialogo();
+    this.crearUI();
     this.iniciarIntro();
   }
 
@@ -79,32 +85,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private dibujarFondo(): void {
-    const g = this.add.graphics();
-
-    // Cielo degradado
-    for (let i = 0; i < 160; i++) {
-      const t = i / 160;
-      g.fillStyle(
-        Phaser.Display.Color.GetColor(
-          Math.floor(100 + t * 80),
-          Math.floor(160 + t * 60),
-          Math.floor(220 + t * 30)
-        )
-      );
-      g.fillRect(0, i, 512, 1);
-    }
-
-    // Plataforma enemigo (arriba derecha)
-    g.fillStyle(0x78b048);
-    g.fillEllipse(400, 145, 85, 20);
-
-    // Plataforma jugador (abajo izquierda)
-    g.fillStyle(0x78b048);
-    g.fillEllipse(110, 210, 100, 24);
-
-    // Suelo
-    g.fillStyle(0x906840);
-    g.fillRect(0, 225, 512, 160);
+    // Usar el fondo de batalla seleccionado
+    const bg = this.add.image(256, 192, this.fondoId);
+    bg.setDisplaySize(512, 384);
   }
 
   private crearSprites(): void {
@@ -118,100 +101,37 @@ export class BattleScene extends Phaser.Scene {
     this.jugadorSprite.setFlipX(true); // Mira hacia el enemigo
   }
 
-  private crearBarrasHP(): void {
-    // Panel HP enemigo (arriba izquierda)
-    this.crearPanelHP(20, 20, this.enemigo, false);
-
-    // Panel HP jugador (abajo derecha)
-    this.crearPanelHP(280, 150, this.jugador, true);
-  }
-
-  private crearPanelHP(x: number, y: number, kodamon: KodamonBatalla, esJugador: boolean): void {
-    const g = this.add.graphics();
-    const tipoConfig = getTipoConfig(kodamon.datos.tipo);
-
-    // Fondo del panel
-    g.fillStyle(0x000000, 0.7);
-    g.fillRoundedRect(x, y, 200, 55, 6);
-
-    // Borde con color del tipo
-    g.lineStyle(2, Phaser.Display.Color.HexStringToColor(tipoConfig.color).color);
-    g.strokeRoundedRect(x, y, 200, 55, 6);
-
-    // Nombre y nivel
-    const nombreText = this.add.text(x + 10, y + 8, `${tipoConfig.icono} ${kodamon.datos.nombre}`, {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '8px',
-      color: '#ffffff',
+  private crearUI(): void {
+    // Barra HP del enemigo (arriba izquierda)
+    this.enemigoHpBar = new HealthBar(this, {
+      x: 15,
+      y: 15,
+      nombre: this.enemigo.datos.nombre,
+      tipo: this.enemigo.datos.tipo,
+      hpMax: this.enemigo.datos.estadisticas.hp,
+      hpActual: this.enemigo.hpActual,
     });
 
-    // Texto HP
-    const hpText = this.add.text(x + 10, y + 25, '', {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '7px',
-      color: '#88ff88',
+    // Barra HP del jugador (abajo derecha)
+    this.jugadorHpBar = new HealthBar(this, {
+      x: 285,
+      y: 145,
+      nombre: this.jugador.datos.nombre,
+      tipo: this.jugador.datos.tipo,
+      hpMax: this.jugador.datos.estadisticas.hp,
+      hpActual: this.jugador.hpActual,
     });
 
-    // Barra HP fondo
-    g.fillStyle(0x333333);
-    g.fillRect(x + 10, y + 40, 180, 8);
-
-    // Barra HP
-    const hpBar = this.add.graphics();
-
-    if (esJugador) {
-      this.jugadorNombreText = nombreText;
-      this.jugadorHpText = hpText;
-      this.jugadorHpBar = hpBar;
-    } else {
-      this.enemigoNombreText = nombreText;
-      this.enemigoHpText = hpText;
-      this.enemigoHpBar = hpBar;
-    }
-
-    this.actualizarBarraHP(kodamon, hpBar, hpText, x + 10, y + 40);
-  }
-
-  private actualizarBarraHP(
-    kodamon: KodamonBatalla,
-    hpBar: Phaser.GameObjects.Graphics,
-    hpText: Phaser.GameObjects.Text,
-    x: number,
-    y: number
-  ): void {
-    const porcentaje = kodamon.hpActual / kodamon.datos.estadisticas.hp;
-    const anchoActual = 180 * porcentaje;
-
-    // Color según HP restante
-    let color = 0x00ff00; // Verde
-    if (porcentaje < 0.5) color = 0xffff00; // Amarillo
-    if (porcentaje < 0.2) color = 0xff0000; // Rojo
-
-    hpBar.clear();
-    hpBar.fillStyle(color);
-    hpBar.fillRect(x, y, anchoActual, 8);
-
-    hpText.setText(`HP: ${kodamon.hpActual} / ${kodamon.datos.estadisticas.hp}`);
-  }
-
-  private crearDialogo(): void {
-    this.dialogoBox = this.add.graphics();
-    this.dialogoBox.fillStyle(0xf8f8f8);
-    this.dialogoBox.fillRoundedRect(10, 255, 492, 50, 6);
-    this.dialogoBox.lineStyle(3, 0x484848);
-    this.dialogoBox.strokeRoundedRect(10, 255, 492, 50, 6);
-
-    this.dialogoText = this.add.text(25, 270, '', {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '9px',
-      color: '#303030',
-      wordWrap: { width: 470 },
+    // Caja de diálogo
+    this.dialogBox = new DialogBox(this, {
+      x: 10,
+      y: 252,
     });
   }
 
   private mostrarDialogo(texto: string, callback?: () => void): void {
-    this.dialogoText.setText(texto);
     this.ocultarBotonesMovimientos();
+    this.dialogBox.setText(texto);
 
     if (callback) {
       this.time.delayedCall(1500, callback);
@@ -228,7 +148,7 @@ export class BattleScene extends Phaser.Scene {
 
   private iniciarTurnoJugador(): void {
     this.estado = 'JUGADOR_TURNO';
-    this.mostrarDialogo(`¿Qué debería hacer ${this.jugador.datos.nombre}?`);
+    this.dialogBox.setText(`¿Qué debería hacer ${this.jugador.datos.nombre}?`);
     this.mostrarBotonesMovimientos();
   }
 
@@ -236,85 +156,35 @@ export class BattleScene extends Phaser.Scene {
     // Limpiar botones anteriores
     this.ocultarBotonesMovimientos();
 
-    const startX = 20;
-    const startY = 310;
-    const buttonWidth = 115;
-    const buttonHeight = 30;
-    const spacing = 5;
+    const startX = 10;
+    const startY = 312;
+    const buttonWidth = 120;
+    const spacing = 4;
 
     this.jugador.movimientosActuales.forEach((movData, index) => {
       const col = index % 4;
       const x = startX + col * (buttonWidth + spacing);
-      const y = startY;
 
-      const container = this.add.container(x, y);
-      const tipoConfig = getTipoConfig(movData.movimiento.tipo);
-
-      // Fondo del botón
-      const bg = this.add.graphics();
-      bg.fillStyle(Phaser.Display.Color.HexStringToColor(tipoConfig.color).color, 0.9);
-      bg.fillRoundedRect(0, 0, buttonWidth, buttonHeight, 4);
-      bg.lineStyle(2, 0x000000, 0.3);
-      bg.strokeRoundedRect(0, 0, buttonWidth, buttonHeight, 4);
-
-      // Nombre del movimiento
-      const texto = this.add
-        .text(buttonWidth / 2, buttonHeight / 2 - 4, movData.movimiento.nombre, {
-          fontFamily: '"Press Start 2P"',
-          fontSize: '6px',
-          color: '#ffffff',
-        })
-        .setOrigin(0.5);
-
-      // PP restantes
-      const ppTexto = this.add
-        .text(
-          buttonWidth / 2,
-          buttonHeight / 2 + 8,
-          `PP: ${movData.ppActual}/${movData.movimiento.ppMax}`,
-          {
-            fontFamily: '"Press Start 2P"',
-            fontSize: '5px',
-            color: '#dddddd',
-          }
-        )
-        .setOrigin(0.5);
-
-      container.add([bg, texto, ppTexto]);
-
-      // Interactividad
-      container.setSize(buttonWidth, buttonHeight);
-      container.setInteractive({ useHandCursor: true });
-
-      container.on('pointerover', () => {
-        bg.clear();
-        bg.fillStyle(Phaser.Display.Color.HexStringToColor(tipoConfig.colorClaro).color, 1);
-        bg.fillRoundedRect(0, 0, buttonWidth, buttonHeight, 4);
-        bg.lineStyle(2, 0xffffff, 0.5);
-        bg.strokeRoundedRect(0, 0, buttonWidth, buttonHeight, 4);
+      const button = new MoveButton(this, {
+        x: x,
+        y: startY,
+        width: buttonWidth,
+        height: 52,
+        nombre: movData.movimiento.nombre,
+        tipo: movData.movimiento.tipo,
+        ppActual: movData.ppActual,
+        ppMax: movData.movimiento.ppMax,
+        disabled: movData.ppActual <= 0,
+        onClick: () => this.ejecutarMovimiento(index),
       });
 
-      container.on('pointerout', () => {
-        bg.clear();
-        bg.fillStyle(Phaser.Display.Color.HexStringToColor(tipoConfig.color).color, 0.9);
-        bg.fillRoundedRect(0, 0, buttonWidth, buttonHeight, 4);
-        bg.lineStyle(2, 0x000000, 0.3);
-        bg.strokeRoundedRect(0, 0, buttonWidth, buttonHeight, 4);
-      });
-
-      container.on('pointerdown', () => {
-        if (movData.ppActual > 0) {
-          this.ejecutarMovimiento(index);
-        }
-      });
-
-      this.botonesMovimientos.push(container);
+      this.moveButtons.push(button);
     });
   }
 
   private ocultarBotonesMovimientos(): void {
-    this.botonesMovimientos.forEach((btn) => btn.destroy());
-    this.botonesMovimientos = [];
+    this.moveButtons.forEach((btn) => btn.destroy());
+    this.moveButtons = [];
   }
 
   private ejecutarMovimiento(index: number): void {
@@ -327,17 +197,32 @@ export class BattleScene extends Phaser.Scene {
     const textoEfectividad = getTextoEfectividad(efectividad);
 
     this.mostrarDialogo(`¡${this.jugador.datos.nombre} usó ${movData.movimiento.nombre}!`, () => {
-      // Animación de ataque
-      this.animarAtaque(this.jugadorSprite, this.enemigoSprite, () => {
-        this.enemigo.hpActual = Math.max(0, this.enemigo.hpActual - daño);
-        this.actualizarBarraHP(this.enemigo, this.enemigoHpBar, this.enemigoHpText, 30, 60);
+      // Efecto de ataque con partículas
+      this.effects.atacar(
+        movData.movimiento.tipo,
+        { x: this.jugadorSprite.x, y: this.jugadorSprite.y },
+        { x: this.enemigoSprite.x, y: this.enemigoSprite.y },
+        () => {
+          // Efecto de daño recibido
+          this.effects.recibirDano(this.enemigoSprite);
 
-        if (textoEfectividad) {
-          this.mostrarDialogo(textoEfectividad, () => this.verificarFinBatalla());
-        } else {
-          this.verificarFinBatalla();
+          this.enemigo.hpActual = Math.max(0, this.enemigo.hpActual - daño);
+          this.enemigoHpBar.setHP(this.enemigo.hpActual);
+
+          // Mostrar efecto de efectividad
+          if (efectividad >= 2) {
+            this.effects.superEfectivo(this.enemigoSprite.x, this.enemigoSprite.y);
+          } else if (efectividad > 0 && efectividad < 1) {
+            this.effects.pocoEfectivo(this.enemigoSprite.x, this.enemigoSprite.y);
+          }
+
+          if (textoEfectividad) {
+            this.mostrarDialogo(textoEfectividad, () => this.verificarFinBatalla());
+          } else {
+            this.time.delayedCall(500, () => this.verificarFinBatalla());
+          }
         }
-      });
+      );
     });
   }
 
@@ -371,37 +256,14 @@ export class BattleScene extends Phaser.Scene {
     return Math.floor(base * efectividad * stab * random);
   }
 
-  private animarAtaque(
-    atacante: Phaser.GameObjects.Image,
-    objetivo: Phaser.GameObjects.Image,
-    callback: () => void
-  ): void {
-    const originalX = atacante.x;
-
-    // Movimiento hacia el objetivo
-    this.tweens.add({
-      targets: atacante,
-      x: atacante.x + (objetivo.x > atacante.x ? 30 : -30),
-      duration: 100,
-      yoyo: true,
-      onComplete: () => {
-        // Flash en el objetivo
-        this.tweens.add({
-          targets: objetivo,
-          alpha: 0.3,
-          duration: 100,
-          yoyo: true,
-          repeat: 2,
-          onComplete: callback,
-        });
-      },
-    });
-  }
-
   private verificarFinBatalla(): void {
     if (this.enemigo.hpActual <= 0) {
       this.estado = 'VICTORIA';
+      // Efecto de derrota del enemigo
+      this.effects.derrotaKodamon(this.enemigoSprite);
       this.mostrarDialogo(`¡${this.enemigo.datos.nombre} se debilitó!`, () => {
+        // Efecto de victoria del jugador
+        this.effects.victoriaKodamon(this.jugadorSprite);
         this.mostrarDialogo(`¡${this.jugador.datos.nombre} ganó la batalla!`, () => {
           this.volverAlMenu();
         });
@@ -433,22 +295,40 @@ export class BattleScene extends Phaser.Scene {
     const textoEfectividad = getTextoEfectividad(efectividad);
 
     this.mostrarDialogo(`¡${this.enemigo.datos.nombre} usó ${movData.movimiento.nombre}!`, () => {
-      this.animarAtaque(this.enemigoSprite, this.jugadorSprite, () => {
-        this.jugador.hpActual = Math.max(0, this.jugador.hpActual - daño);
-        this.actualizarBarraHP(this.jugador, this.jugadorHpBar, this.jugadorHpText, 290, 190);
+      // Efecto de ataque con partículas
+      this.effects.atacar(
+        movData.movimiento.tipo,
+        { x: this.enemigoSprite.x, y: this.enemigoSprite.y },
+        { x: this.jugadorSprite.x, y: this.jugadorSprite.y },
+        () => {
+          // Efecto de daño recibido
+          this.effects.recibirDano(this.jugadorSprite);
 
-        if (textoEfectividad) {
-          this.mostrarDialogo(textoEfectividad, () => this.verificarDerrotaJugador());
-        } else {
-          this.verificarDerrotaJugador();
+          this.jugador.hpActual = Math.max(0, this.jugador.hpActual - daño);
+          this.jugadorHpBar.setHP(this.jugador.hpActual);
+
+          // Mostrar efecto de efectividad
+          if (efectividad >= 2) {
+            this.effects.superEfectivo(this.jugadorSprite.x, this.jugadorSprite.y);
+          } else if (efectividad > 0 && efectividad < 1) {
+            this.effects.pocoEfectivo(this.jugadorSprite.x, this.jugadorSprite.y);
+          }
+
+          if (textoEfectividad) {
+            this.mostrarDialogo(textoEfectividad, () => this.verificarDerrotaJugador());
+          } else {
+            this.time.delayedCall(500, () => this.verificarDerrotaJugador());
+          }
         }
-      });
+      );
     });
   }
 
   private verificarDerrotaJugador(): void {
     if (this.jugador.hpActual <= 0) {
       this.estado = 'DERROTA';
+      // Efecto de derrota del jugador
+      this.effects.derrotaKodamon(this.jugadorSprite);
       this.mostrarDialogo(`¡${this.jugador.datos.nombre} se debilitó!`, () => {
         this.mostrarDialogo('Has perdido la batalla...', () => {
           this.volverAlMenu();

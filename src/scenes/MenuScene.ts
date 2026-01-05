@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { getAllKodamons, getTipoConfig } from '@data/index';
 import type { KodamonData } from '@game-types/index';
+import { FONDOS_DISPONIBLES } from './BootScene';
 
 export class MenuScene extends Phaser.Scene {
   private kodamons: KodamonData[] = [];
@@ -10,6 +11,11 @@ export class MenuScene extends Phaser.Scene {
   private infoText!: Phaser.GameObjects.Text;
   private statsText!: Phaser.GameObjects.Text;
 
+  // Selector de fondo
+  private fondoSeleccionado: number = 0;
+  private fondoPreview!: Phaser.GameObjects.Image;
+  private fondoNombreText!: Phaser.GameObjects.Text;
+
   constructor() {
     super({ key: 'MenuScene' });
   }
@@ -17,11 +23,13 @@ export class MenuScene extends Phaser.Scene {
   create(): void {
     this.kodamons = getAllKodamons();
     this.selectedIndex = 0;
+    this.fondoSeleccionado = 0;
 
     this.dibujarFondo();
     this.crearTitulo();
     this.crearGridKodamons();
     this.crearSelector();
+    this.crearSelectorFondo();
     this.crearPanelInfo();
     this.configurarInput();
 
@@ -61,10 +69,10 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private crearGridKodamons(): void {
-    const startX = 64;
-    const startY = 100;
-    const spacingX = 80;
-    const spacingY = 80;
+    const startX = 55;
+    const startY = 95;
+    const spacingX = 70;
+    const spacingY = 75;
     const columns = 5;
 
     this.kodamons.forEach((kodamon, index) => {
@@ -73,8 +81,9 @@ export class MenuScene extends Phaser.Scene {
       const x = startX + col * spacingX;
       const y = startY + row * spacingY;
 
-      // Sprite del Kodamon
+      // Sprite del Kodamon (reducido)
       const sprite = this.add.image(x, y, `kodamon-${kodamon.id}`);
+      sprite.setScale(0.85);
       sprite.setInteractive({ useHandCursor: true });
       sprite.on('pointerdown', () => this.seleccionarKodamon(index));
       sprite.on('pointerover', () => this.previsualizarKodamon(index));
@@ -83,9 +92,9 @@ export class MenuScene extends Phaser.Scene {
 
       // Nombre debajo del sprite
       this.add
-        .text(x, y + 40, kodamon.nombre, {
+        .text(x, y + 35, kodamon.nombre, {
           fontFamily: '"Press Start 2P"',
-          fontSize: '6px',
+          fontSize: '5px',
           color: '#ffffff',
         })
         .setOrigin(0.5);
@@ -95,6 +104,75 @@ export class MenuScene extends Phaser.Scene {
   private crearSelector(): void {
     this.selectorRect = this.add.graphics();
     this.selectorRect.lineStyle(3, 0xf0c030, 1);
+  }
+
+  private crearSelectorFondo(): void {
+    const panelX = 448;
+    const panelY = 132;
+
+    // Título
+    this.add
+      .text(panelX, panelY - 50, 'ARENA', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '7px',
+        color: '#f0c030',
+      })
+      .setOrigin(0.5);
+
+    // Fondo del panel
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.8);
+    g.fillRoundedRect(panelX - 50, panelY - 38, 100, 95, 6);
+    g.lineStyle(2, 0xf0c030, 0.5);
+    g.strokeRoundedRect(panelX - 50, panelY - 38, 100, 95, 6);
+
+    // Preview del fondo (miniatura)
+    this.fondoPreview = this.add.image(panelX, panelY, FONDOS_DISPONIBLES[0].id);
+    this.fondoPreview.setDisplaySize(80, 60);
+
+    // Nombre del fondo
+    this.fondoNombreText = this.add
+      .text(panelX, panelY + 42, FONDOS_DISPONIBLES[0].nombre, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '5px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5);
+
+    // Botones de navegación
+    const btnIzq = this.add
+      .text(panelX - 42, panelY, '<', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#f0c030',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    const btnDer = this.add
+      .text(panelX + 42, panelY, '>', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#f0c030',
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    btnIzq.on('pointerdown', () => this.cambiarFondo(-1));
+    btnDer.on('pointerdown', () => this.cambiarFondo(1));
+
+    btnIzq.on('pointerover', () => btnIzq.setColor('#ffffff'));
+    btnIzq.on('pointerout', () => btnIzq.setColor('#f0c030'));
+    btnDer.on('pointerover', () => btnDer.setColor('#ffffff'));
+    btnDer.on('pointerout', () => btnDer.setColor('#f0c030'));
+  }
+
+  private cambiarFondo(delta: number): void {
+    this.fondoSeleccionado =
+      (this.fondoSeleccionado + delta + FONDOS_DISPONIBLES.length) % FONDOS_DISPONIBLES.length;
+    const fondo = FONDOS_DISPONIBLES[this.fondoSeleccionado];
+    this.fondoPreview.setTexture(fondo.id);
+    this.fondoNombreText.setText(fondo.nombre);
   }
 
   private crearPanelInfo(): void {
@@ -171,10 +249,10 @@ export class MenuScene extends Phaser.Scene {
     const sprite = this.kodamonSprites[this.selectedIndex];
     const tipoConfig = getTipoConfig(kodamon.tipo);
 
-    // Actualizar selector visual
+    // Actualizar selector visual (ajustado al nuevo tamaño de sprites)
     this.selectorRect.clear();
-    this.selectorRect.lineStyle(3, 0xf0c030, 1);
-    this.selectorRect.strokeRect(sprite.x - 36, sprite.y - 36, 72, 72);
+    this.selectorRect.lineStyle(2, 0xf0c030, 1);
+    this.selectorRect.strokeRect(sprite.x - 30, sprite.y - 30, 60, 60);
 
     // Actualizar info
     this.infoText.setText(
@@ -191,11 +269,13 @@ export class MenuScene extends Phaser.Scene {
 
   private confirmarSeleccion(): void {
     const kodamonSeleccionado = this.kodamons[this.selectedIndex];
+    const fondoId = FONDOS_DISPONIBLES[this.fondoSeleccionado].id;
 
     this.cameras.main.fade(400, 0, 0, 0);
     this.time.delayedCall(400, () => {
       this.scene.start('BattleScene', {
         jugador: kodamonSeleccionado,
+        fondoId: fondoId,
       });
     });
   }

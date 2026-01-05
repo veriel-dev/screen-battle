@@ -1,6 +1,45 @@
 import { getAllKodamons } from '@/data';
-import { SpriteGenerator } from '@/utils';
 import Phaser from 'phaser';
+
+// Importar assets - Fondos de batalla
+import battleBg1 from '@assets/sprites/backgrounds/battle-bg-1.png';
+import battleBg2 from '@assets/sprites/backgrounds/battle-bg-2.png';
+import battleBg3 from '@assets/sprites/backgrounds/battle-bg-3.png';
+import battleBg4 from '@assets/sprites/backgrounds/battle-bg-4.png';
+
+// Importar assets - Sprites de Kodamon
+import pyrexSprite from '@assets/sprites/kodamons/pyrex.png';
+import aquonSprite from '@assets/sprites/kodamons/aquon.png';
+import florixSprite from '@assets/sprites/kodamons/florix.png';
+import voltikSprite from '@assets/sprites/kodamons/voltik.png';
+import terronSprite from '@assets/sprites/kodamons/terron.png';
+import glaceonSprite from '@assets/sprites/kodamons/glaceon.png';
+import aerixSprite from '@assets/sprites/kodamons/aerix.png';
+import petrosSprite from '@assets/sprites/kodamons/petros.png';
+import normexSprite from '@assets/sprites/kodamons/normex.png';
+import spekterSprite from '@assets/sprites/kodamons/spekter.png';
+
+// Mapa de fondos de batalla
+const BATTLE_BACKGROUNDS: Record<string, string> = {
+  'battle-bg-1': battleBg1,
+  'battle-bg-2': battleBg2,
+  'battle-bg-3': battleBg3,
+  'battle-bg-4': battleBg4,
+};
+
+// Mapa de sprites por ID de Kodamon
+const KODAMON_SPRITES: Record<string, string> = {
+  pyrex: pyrexSprite,
+  aquon: aquonSprite,
+  florix: florixSprite,
+  voltik: voltikSprite,
+  terron: terronSprite,
+  glaceon: glaceonSprite,
+  aerix: aerixSprite,
+  petros: petrosSprite,
+  normex: normexSprite,
+  spekter: spekterSprite,
+};
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -9,10 +48,11 @@ export class BootScene extends Phaser.Scene {
 
   preload(): void {
     this.crearBarraDeCarga();
+    this.cargarAssets();
   }
 
   create(): void {
-    this.generarSprites();
+    console.log(`[BootScene] Assets cargados correctamente`);
     this.scene.start('MenuScene');
   }
   private crearBarraDeCarga(): void {
@@ -45,15 +85,29 @@ export class BootScene extends Phaser.Scene {
       loadingText.destroy();
     });
   }
-  private generarSprites(): void {
-    const generator = new SpriteGenerator(this, 64);
-    const kodamons = getAllKodamons();
-
-    // Generar sprite para cada Kodamon
-    kodamons.forEach((kodamon) => {
-      generator.generate(kodamon.id, kodamon.tipo);
+  private cargarAssets(): void {
+    // Cargar fondos de batalla
+    Object.entries(BATTLE_BACKGROUNDS).forEach(([key, url]) => {
+      this.load.image(key, url);
     });
 
-    console.log(`[BootScene] ${kodamons.length} sprites generados`);
+    // Cargar sprites de Kodamon
+    const kodamons = getAllKodamons();
+    kodamons.forEach((kodamon) => {
+      const spriteUrl = KODAMON_SPRITES[kodamon.id];
+      if (spriteUrl) {
+        this.load.image(`kodamon-${kodamon.id}`, spriteUrl);
+      }
+    });
+
+    console.log(`[BootScene] Cargando ${Object.keys(BATTLE_BACKGROUNDS).length} fondos y ${kodamons.length} sprites...`);
   }
 }
+
+// Exportar lista de fondos disponibles para usar en otras escenas
+export const FONDOS_DISPONIBLES = [
+  { id: 'battle-bg-1', nombre: 'Ruinas' },
+  { id: 'battle-bg-2', nombre: 'Bosque' },
+  { id: 'battle-bg-3', nombre: 'Desierto' },
+  { id: 'battle-bg-4', nombre: 'Castillo' },
+];
