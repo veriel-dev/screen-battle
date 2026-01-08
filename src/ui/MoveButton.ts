@@ -9,8 +9,10 @@ export interface MoveButtonConfig {
   height?: number;
   nombre: string;
   tipo: TipoElemental;
+  poder: number;
   ppActual: number;
   ppMax: number;
+  efectividad?: number; // Multiplicador de efectividad vs enemigo actual
   disabled?: boolean;
   onClick?: () => void;
 }
@@ -37,7 +39,8 @@ export class MoveButton extends Phaser.GameObjects.Container {
 
     this.config = {
       width: 118,
-      height: 50,
+      height: 58,
+      efectividad: 1,
       disabled: false,
       onClick: () => {},
       ...config,
@@ -51,7 +54,7 @@ export class MoveButton extends Phaser.GameObjects.Container {
   }
 
   private crearComponentes(): void {
-    const { width, height, nombre, tipo, ppActual, ppMax } = this.config;
+    const { width, height, nombre, tipo, poder, ppActual, ppMax, efectividad } = this.config;
     const tipoConfig = getTipoConfig(tipo);
     const tipoColor = Phaser.Display.Color.HexStringToColor(tipoConfig.color).color;
 
@@ -78,7 +81,7 @@ export class MoveButton extends Phaser.GameObjects.Container {
     this.add(iconBg);
 
     // Nombre del movimiento
-    this.nombreText = this.scene.add.text(12, 8, nombre, {
+    this.nombreText = this.scene.add.text(12, 6, nombre, {
       fontFamily: '"Press Start 2P"',
       fontSize: '7px',
       color: this.isDisabled ? '#666666' : '#ffffff',
@@ -88,9 +91,33 @@ export class MoveButton extends Phaser.GameObjects.Container {
     });
     this.add(this.nombreText);
 
+    // Poder del movimiento
+    const poderText = this.scene.add.text(12, 20, `PWR ${poder}`, {
+      fontFamily: '"Press Start 2P"',
+      fontSize: '6px',
+      color: this.isDisabled ? '#444444' : '#ffaa44',
+    });
+    this.add(poderText);
+
+    // Indicador de efectividad
+    if (efectividad && efectividad !== 1) {
+      const efColor = efectividad >= 2 ? '#44ff88' : efectividad > 0 ? '#ff8844' : '#888888';
+      const efText = efectividad >= 2 ? '▲▲' : efectividad > 0 && efectividad < 1 ? '▼▼' : '✕';
+      const efLabel =
+        efectividad >= 2 ? 'S.EFEC' : efectividad > 0 && efectividad < 1 ? 'RESIST' : 'INMUNE';
+
+      const efectividadIndicator = this.scene.add.text(width - 8, 22, `${efText} ${efLabel}`, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '5px',
+        color: this.isDisabled ? '#444444' : efColor,
+      });
+      efectividadIndicator.setOrigin(1, 0);
+      this.add(efectividadIndicator);
+    }
+
     // PP restantes
     const ppColor = this.getPPColor(ppActual, ppMax);
-    this.ppText = this.scene.add.text(12, height - 16, `PP ${ppActual}/${ppMax}`, {
+    this.ppText = this.scene.add.text(12, height - 14, `PP ${ppActual}/${ppMax}`, {
       fontFamily: '"Press Start 2P"',
       fontSize: '6px',
       color: this.isDisabled ? '#444444' : ppColor,
@@ -99,7 +126,7 @@ export class MoveButton extends Phaser.GameObjects.Container {
 
     // Tipo texto
     const tipoText = this.scene.add
-      .text(width - 8, height - 16, tipoConfig.nombre.substring(0, 4).toUpperCase(), {
+      .text(width - 8, height - 14, tipoConfig.nombre.substring(0, 4).toUpperCase(), {
         fontFamily: '"Press Start 2P"',
         fontSize: '5px',
         color: this.isDisabled ? '#444444' : tipoConfig.color,

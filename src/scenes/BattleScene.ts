@@ -36,6 +36,7 @@ export class BattleScene extends Phaser.Scene {
   private enemigoHpBar!: HealthBar;
   private dialogBox!: DialogBox;
   private moveButtons: MoveButton[] = [];
+  private turnIndicator!: Phaser.GameObjects.Container;
 
   constructor() {
     super({ key: 'BattleScene' });
@@ -127,6 +128,97 @@ export class BattleScene extends Phaser.Scene {
       x: 10,
       y: 252,
     });
+
+    // Indicador de turno
+    this.crearIndicadorTurno();
+  }
+
+  private crearIndicadorTurno(): void {
+    this.turnIndicator = this.add.container(256, -30);
+
+    // Fondo del banner
+    const bg = this.add.graphics();
+    bg.fillStyle(0x16213e, 0.95);
+    bg.fillRoundedRect(-100, -12, 200, 24, 12);
+    bg.lineStyle(2, 0x4a6fa5);
+    bg.strokeRoundedRect(-100, -12, 200, 24, 12);
+
+    // Texto del turno
+    const texto = this.add
+      .text(0, 0, '', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '8px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5);
+
+    // Indicadores laterales (estrellas)
+    const starLeft = this.add
+      .text(-90, 0, '★', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5);
+
+    const starRight = this.add
+      .text(90, 0, '★', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#ffdd44',
+      })
+      .setOrigin(0.5);
+
+    this.turnIndicator.add([bg, starLeft, texto, starRight]);
+    this.turnIndicator.setData('texto', texto);
+    this.turnIndicator.setData('starLeft', starLeft);
+    this.turnIndicator.setData('starRight', starRight);
+    this.turnIndicator.setVisible(false);
+  }
+
+  private mostrarIndicadorTurno(nombreKodamon: string, esJugador: boolean): void {
+    const texto = this.turnIndicator.getData('texto') as Phaser.GameObjects.Text;
+    const starLeft = this.turnIndicator.getData('starLeft') as Phaser.GameObjects.Text;
+    const starRight = this.turnIndicator.getData('starRight') as Phaser.GameObjects.Text;
+
+    texto.setText(`TURNO DE ${nombreKodamon.toUpperCase()}`);
+
+    // Color según quién juega
+    const color = esJugador ? '#44ff88' : '#ff6666';
+    starLeft.setColor(color);
+    starRight.setColor(color);
+
+    // Animación de entrada
+    this.turnIndicator.setVisible(true);
+    this.turnIndicator.y = -30;
+
+    this.tweens.add({
+      targets: this.turnIndicator,
+      y: 20,
+      duration: 300,
+      ease: 'Back.easeOut',
+    });
+
+    // Animación de estrellas
+    this.tweens.add({
+      targets: [starLeft, starRight],
+      angle: 360,
+      duration: 1000,
+      ease: 'Linear',
+      repeat: -1,
+    });
+  }
+
+  private ocultarIndicadorTurno(): void {
+    this.tweens.add({
+      targets: this.turnIndicator,
+      y: -30,
+      duration: 200,
+      ease: 'Power2',
+      onComplete: () => this.turnIndicator.setVisible(false),
+    });
   }
 
   private mostrarDialogo(texto: string, callback?: () => void): void {
@@ -148,6 +240,7 @@ export class BattleScene extends Phaser.Scene {
 
   private iniciarTurnoJugador(): void {
     this._estado = 'JUGADOR_TURNO';
+    this.mostrarIndicadorTurno(this.jugador.datos.nombre, true);
     this.dialogBox.setText(`¿Qué debería hacer ${this.jugador.datos.nombre}?`);
     this.mostrarBotonesMovimientos();
   }
@@ -157,7 +250,7 @@ export class BattleScene extends Phaser.Scene {
     this.ocultarBotonesMovimientos();
 
     const startX = 10;
-    const startY = 312;
+    const startY = 306;
     const buttonWidth = 120;
     const spacing = 4;
 
@@ -165,15 +258,20 @@ export class BattleScene extends Phaser.Scene {
       const col = index % 4;
       const x = startX + col * (buttonWidth + spacing);
 
+      // Calcular efectividad vs enemigo actual
+      const efectividad = getEfectividad(movData.movimiento.tipo, this.enemigo.datos.tipo);
+
       const button = new MoveButton(this, {
         x: x,
         y: startY,
         width: buttonWidth,
-        height: 52,
+        height: 58,
         nombre: movData.movimiento.nombre,
         tipo: movData.movimiento.tipo,
+        poder: movData.movimiento.poder,
         ppActual: movData.ppActual,
         ppMax: movData.movimiento.ppMax,
+        efectividad: efectividad,
         disabled: movData.ppActual <= 0,
         onClick: () => this.ejecutarMovimiento(index),
       });
@@ -189,6 +287,8 @@ export class BattleScene extends Phaser.Scene {
 
   private ejecutarMovimiento(index: number): void {
     this._estado = 'ANIMACION';
+    this.ocultarIndicadorTurno();
+
     const movData = this.jugador.movimientosActuales[index];
     movData.ppActual--;
 
@@ -205,6 +305,14 @@ export class BattleScene extends Phaser.Scene {
         () => {
           // Efecto de daño recibido
           this.effects.recibirDano(this.enemigoSprite);
+
+          // Mostrar número de daño flotante
+          this.mostrarDañoFlotante(
+            this.enemigoSprite.x,
+            this.enemigoSprite.y,
+            daño,
+            efectividad
+          );
 
           this.enemigo.hpActual = Math.max(0, this.enemigo.hpActual - daño);
           this.enemigoHpBar.setHP(this.enemigo.hpActual);
@@ -256,6 +364,52 @@ export class BattleScene extends Phaser.Scene {
     return Math.floor(base * efectividad * stab * random);
   }
 
+  /**
+   * Muestra el daño como número flotante animado
+   */
+  private mostrarDañoFlotante(
+    x: number,
+    y: number,
+    daño: number,
+    efectividad: number
+  ): void {
+    // Color según efectividad
+    let color = '#ffffff';
+    let fontSize = '14px';
+
+    if (efectividad >= 2) {
+      color = '#ffdd44'; // Súper efectivo - dorado
+      fontSize = '18px';
+    } else if (efectividad > 0 && efectividad < 1) {
+      color = '#888888'; // Poco efectivo - gris
+      fontSize = '12px';
+    } else if (efectividad === 0) {
+      color = '#444444'; // Sin efecto
+      fontSize = '10px';
+    }
+
+    const texto = this.add
+      .text(x, y - 20, `-${daño}`, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: fontSize,
+        color: color,
+        stroke: '#000000',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
+
+    // Animación: sube y desaparece
+    this.tweens.add({
+      targets: texto,
+      y: y - 60,
+      alpha: 0,
+      scale: 1.2,
+      duration: 1000,
+      ease: 'Power2',
+      onComplete: () => texto.destroy(),
+    });
+  }
+
   private verificarFinBatalla(): void {
     if (this.enemigo.hpActual <= 0) {
       this._estado = 'VICTORIA';
@@ -275,11 +429,13 @@ export class BattleScene extends Phaser.Scene {
 
   private turnoEnemigo(): void {
     this._estado = 'ENEMIGO_TURNO';
+    this.mostrarIndicadorTurno(this.enemigo.datos.nombre, false);
 
     // El enemigo elige un movimiento aleatorio con PP
     const movimientosDisponibles = this.enemigo.movimientosActuales.filter((m) => m.ppActual > 0);
     if (movimientosDisponibles.length === 0) {
       // Sin PP, usa forcejeo (daño fijo)
+      this.ocultarIndicadorTurno();
       this.mostrarDialogo(`¡${this.enemigo.datos.nombre} no puede atacar!`, () => {
         this.iniciarTurnoJugador();
       });
@@ -294,6 +450,9 @@ export class BattleScene extends Phaser.Scene {
     const efectividad = getEfectividad(movData.movimiento.tipo, this.jugador.datos.tipo);
     const textoEfectividad = getTextoEfectividad(efectividad);
 
+    // Ocultar indicador antes de atacar
+    this.time.delayedCall(800, () => this.ocultarIndicadorTurno());
+
     this.mostrarDialogo(`¡${this.enemigo.datos.nombre} usó ${movData.movimiento.nombre}!`, () => {
       // Efecto de ataque con partículas
       this.effects.atacar(
@@ -303,6 +462,14 @@ export class BattleScene extends Phaser.Scene {
         () => {
           // Efecto de daño recibido
           this.effects.recibirDano(this.jugadorSprite);
+
+          // Mostrar número de daño flotante
+          this.mostrarDañoFlotante(
+            this.jugadorSprite.x,
+            this.jugadorSprite.y,
+            daño,
+            efectividad
+          );
 
           this.jugador.hpActual = Math.max(0, this.jugador.hpActual - daño);
           this.jugadorHpBar.setHP(this.jugador.hpActual);
