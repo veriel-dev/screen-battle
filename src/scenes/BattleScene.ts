@@ -1,11 +1,6 @@
 import Phaser from 'phaser';
 import type { KodamonData, KodamonBatalla, Movimiento } from '@game-types/index';
-import {
-  getRandomKodamon,
-  getMovimiento,
-  getEfectividad,
-  getTextoEfectividad,
-} from '@data/index';
+import { getRandomKodamon, getMovimiento, getEfectividad, getTextoEfectividad } from '@data/index';
 import { BattleEffects } from '@systems/index';
 import { HealthBar, MoveButton, DialogBox } from '@ui/index';
 
@@ -21,8 +16,13 @@ export class BattleScene extends Phaser.Scene {
   // Datos de batalla
   private jugador!: KodamonBatalla;
   private enemigo!: KodamonBatalla;
-  private estado: EstadoBatalla = 'INTRO';
+  private _estado: EstadoBatalla = 'INTRO';
   private fondoId: string = 'battle-bg-1';
+
+  /** Estado actual de la batalla */
+  get estado(): EstadoBatalla {
+    return this._estado;
+  }
 
   // Sistema de efectos
   private effects!: BattleEffects;
@@ -55,7 +55,7 @@ export class BattleScene extends Phaser.Scene {
     } while (enemigoData.id === data.jugador.id);
 
     this.enemigo = this.crearKodamonBatalla(enemigoData);
-    this.estado = 'INTRO';
+    this._estado = 'INTRO';
   }
 
   create(): void {
@@ -147,7 +147,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private iniciarTurnoJugador(): void {
-    this.estado = 'JUGADOR_TURNO';
+    this._estado = 'JUGADOR_TURNO';
     this.dialogBox.setText(`¿Qué debería hacer ${this.jugador.datos.nombre}?`);
     this.mostrarBotonesMovimientos();
   }
@@ -188,7 +188,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private ejecutarMovimiento(index: number): void {
-    this.estado = 'ANIMACION';
+    this._estado = 'ANIMACION';
     const movData = this.jugador.movimientosActuales[index];
     movData.ppActual--;
 
@@ -258,7 +258,7 @@ export class BattleScene extends Phaser.Scene {
 
   private verificarFinBatalla(): void {
     if (this.enemigo.hpActual <= 0) {
-      this.estado = 'VICTORIA';
+      this._estado = 'VICTORIA';
       // Efecto de derrota del enemigo
       this.effects.derrotaKodamon(this.enemigoSprite);
       this.mostrarDialogo(`¡${this.enemigo.datos.nombre} se debilitó!`, () => {
@@ -274,7 +274,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private turnoEnemigo(): void {
-    this.estado = 'ENEMIGO_TURNO';
+    this._estado = 'ENEMIGO_TURNO';
 
     // El enemigo elige un movimiento aleatorio con PP
     const movimientosDisponibles = this.enemigo.movimientosActuales.filter((m) => m.ppActual > 0);
@@ -326,7 +326,7 @@ export class BattleScene extends Phaser.Scene {
 
   private verificarDerrotaJugador(): void {
     if (this.jugador.hpActual <= 0) {
-      this.estado = 'DERROTA';
+      this._estado = 'DERROTA';
       // Efecto de derrota del jugador
       this.effects.derrotaKodamon(this.jugadorSprite);
       this.mostrarDialogo(`¡${this.jugador.datos.nombre} se debilitó!`, () => {

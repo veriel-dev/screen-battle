@@ -24,8 +24,13 @@ export class MoveButton extends Phaser.GameObjects.Container {
   private nombreText!: Phaser.GameObjects.Text;
   private ppText!: Phaser.GameObjects.Text;
   private tipoIndicator!: Phaser.GameObjects.Graphics;
-  private isHovered: boolean = false;
+  private _isHovered: boolean = false;
   private isDisabled: boolean;
+
+  /** Indica si el botón está siendo hover */
+  get isHovered(): boolean {
+    return this._isHovered;
+  }
 
   constructor(scene: Phaser.Scene, config: MoveButtonConfig) {
     super(scene, config.x, config.y);
@@ -73,46 +78,33 @@ export class MoveButton extends Phaser.GameObjects.Container {
     this.add(iconBg);
 
     // Nombre del movimiento
-    this.nombreText = this.scene.add.text(
-      12,
-      8,
-      nombre,
-      {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '7px',
-        color: this.isDisabled ? '#666666' : '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 1,
-        wordWrap: { width: width - 30 },
-      }
-    );
+    this.nombreText = this.scene.add.text(12, 8, nombre, {
+      fontFamily: '"Press Start 2P"',
+      fontSize: '7px',
+      color: this.isDisabled ? '#666666' : '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 1,
+      wordWrap: { width: width - 30 },
+    });
     this.add(this.nombreText);
 
     // PP restantes
     const ppColor = this.getPPColor(ppActual, ppMax);
-    this.ppText = this.scene.add.text(
-      12,
-      height - 16,
-      `PP ${ppActual}/${ppMax}`,
-      {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '6px',
-        color: this.isDisabled ? '#444444' : ppColor,
-      }
-    );
+    this.ppText = this.scene.add.text(12, height - 16, `PP ${ppActual}/${ppMax}`, {
+      fontFamily: '"Press Start 2P"',
+      fontSize: '6px',
+      color: this.isDisabled ? '#444444' : ppColor,
+    });
     this.add(this.ppText);
 
     // Tipo texto
-    const tipoText = this.scene.add.text(
-      width - 8,
-      height - 16,
-      tipoConfig.nombre.substring(0, 4).toUpperCase(),
-      {
+    const tipoText = this.scene.add
+      .text(width - 8, height - 16, tipoConfig.nombre.substring(0, 4).toUpperCase(), {
         fontFamily: '"Press Start 2P"',
         fontSize: '5px',
         color: this.isDisabled ? '#444444' : tipoConfig.color,
-      }
-    ).setOrigin(1, 0);
+      })
+      .setOrigin(1, 0);
     this.add(tipoText);
   }
 
@@ -183,7 +175,7 @@ export class MoveButton extends Phaser.GameObjects.Container {
 
     this.on('pointerover', () => {
       if (!this.isDisabled) {
-        this.isHovered = true;
+        this._isHovered = true;
         this.dibujarFondo(tipoColor, true);
         this.setScale(1.02);
       }
@@ -191,7 +183,7 @@ export class MoveButton extends Phaser.GameObjects.Container {
 
     this.on('pointerout', () => {
       if (!this.isDisabled) {
-        this.isHovered = false;
+        this._isHovered = false;
         this.dibujarFondo(tipoColor, false);
         this.setScale(1);
       }

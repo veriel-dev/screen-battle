@@ -63,18 +63,13 @@ export class HealthBar extends Phaser.GameObjects.Container {
     this.add(this.tipoIcon);
 
     // Nombre del Kodamon
-    this.nombreText = this.scene.add.text(
-      flipped ? width - 35 : 30,
-      10,
-      nombre,
-      {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '9px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 2,
-      }
-    );
+    this.nombreText = this.scene.add.text(flipped ? width - 35 : 30, 10, nombre, {
+      fontFamily: '"Press Start 2P"',
+      fontSize: '9px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 2,
+    });
     if (flipped) this.nombreText.setOrigin(1, 0);
     this.add(this.nombreText);
 
@@ -93,18 +88,15 @@ export class HealthBar extends Phaser.GameObjects.Container {
 
     // Texto HP
     if (this.config.showHpText) {
-      this.hpText = this.scene.add.text(
-        width / 2,
-        50,
-        '',
-        {
+      this.hpText = this.scene.add
+        .text(width / 2, 50, '', {
           fontFamily: '"Press Start 2P"',
           fontSize: '7px',
           color: '#aaffaa',
           stroke: '#000000',
           strokeThickness: 1,
-        }
-      ).setOrigin(0.5, 0);
+        })
+        .setOrigin(0.5, 0);
       this.add(this.hpText);
       this.actualizarTextoHP();
     }

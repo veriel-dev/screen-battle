@@ -40,31 +40,23 @@ export class DialogBox extends Phaser.GameObjects.Container {
     this.add(this.background);
 
     // Texto del diálogo
-    this.dialogText = this.scene.add.text(
-      15,
-      12,
-      '',
-      {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '9px',
-        color: '#e8e8e8',
-        wordWrap: { width: width - 40 },
-        lineSpacing: 6,
-      }
-    );
+    this.dialogText = this.scene.add.text(15, 12, '', {
+      fontFamily: '"Press Start 2P"',
+      fontSize: '9px',
+      color: '#e8e8e8',
+      wordWrap: { width: width - 40 },
+      lineSpacing: 6,
+    });
     this.add(this.dialogText);
 
     // Indicador de continuar (triángulo animado)
-    this.indicator = this.scene.add.text(
-      width - 20,
-      height - 18,
-      '▼',
-      {
+    this.indicator = this.scene.add
+      .text(width - 20, height - 18, '▼', {
         fontFamily: '"Press Start 2P"',
         fontSize: '8px',
         color: '#88ccff',
-      }
-    ).setOrigin(0.5);
+      })
+      .setOrigin(0.5);
     this.indicator.setVisible(false);
     this.add(this.indicator);
 

@@ -100,7 +100,9 @@ export class BootScene extends Phaser.Scene {
       }
     });
 
-    console.log(`[BootScene] Cargando ${Object.keys(BATTLE_BACKGROUNDS).length} fondos y ${kodamons.length} sprites...`);
+    console.log(
+      `[BootScene] Cargando ${Object.keys(BATTLE_BACKGROUNDS).length} fondos y ${kodamons.length} sprites...`
+    );
   }
 }
 

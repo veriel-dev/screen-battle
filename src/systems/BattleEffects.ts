@@ -20,11 +20,19 @@ export class BattleEffects {
    */
   private generarTexturasParticulas(): void {
     const tipos: TipoElemental[] = [
-      'fuego', 'agua', 'planta', 'electrico', 'tierra',
-      'hielo', 'volador', 'roca', 'normal', 'fantasma'
+      'fuego',
+      'agua',
+      'planta',
+      'electrico',
+      'tierra',
+      'hielo',
+      'volador',
+      'roca',
+      'normal',
+      'fantasma',
     ];
 
-    tipos.forEach(tipo => {
+    tipos.forEach((tipo) => {
       const config = getTipoConfig(tipo);
       const key = `particle-${tipo}`;
 
@@ -126,7 +134,7 @@ export class BattleEffects {
           particles.destroy();
           if (callback) callback();
         });
-      }
+      },
     });
   }
 
@@ -135,7 +143,7 @@ export class BattleEffects {
    */
   impacto(x: number, y: number, tipo?: TipoElemental): void {
     const textureKey = tipo
-      ? (this.particleTextures.get(tipo) || 'particle-impact')
+      ? this.particleTextures.get(tipo) || 'particle-impact'
       : 'particle-impact';
 
     // Explosión de partículas
@@ -189,7 +197,7 @@ export class BattleEffects {
       onComplete: () => {
         sprite.clearTint();
         sprite.x = originalX;
-      }
+      },
     });
   }
 
@@ -219,13 +227,15 @@ export class BattleEffects {
    */
   superEfectivo(x: number, y: number): void {
     // Texto animado
-    const texto = this.scene.add.text(x, y - 30, '¡Super Efectivo!', {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '8px',
-      color: '#ffff00',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
+    const texto = this.scene.add
+      .text(x, y - 30, '¡Super Efectivo!', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '8px',
+        color: '#ffff00',
+        stroke: '#000000',
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5);
 
     this.scene.tweens.add({
       targets: texto,
@@ -234,7 +244,7 @@ export class BattleEffects {
       scale: 1.5,
       duration: 1000,
       ease: 'Quad.easeOut',
-      onComplete: () => texto.destroy()
+      onComplete: () => texto.destroy(),
     });
 
     // Partículas extra
@@ -245,13 +255,15 @@ export class BattleEffects {
    * Efecto de movimiento poco efectivo
    */
   pocoEfectivo(x: number, y: number): void {
-    const texto = this.scene.add.text(x, y - 30, 'Poco Efectivo...', {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '6px',
-      color: '#888888',
-      stroke: '#000000',
-      strokeThickness: 2,
-    }).setOrigin(0.5);
+    const texto = this.scene.add
+      .text(x, y - 30, 'Poco Efectivo...', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '6px',
+        color: '#888888',
+        stroke: '#000000',
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5);
 
     this.scene.tweens.add({
       targets: texto,
@@ -259,7 +271,7 @@ export class BattleEffects {
       alpha: 0,
       duration: 800,
       ease: 'Quad.easeOut',
-      onComplete: () => texto.destroy()
+      onComplete: () => texto.destroy(),
     });
   }
 
@@ -267,13 +279,15 @@ export class BattleEffects {
    * Efecto de crítico
    */
   critico(x: number, y: number): void {
-    const texto = this.scene.add.text(x, y - 40, '¡CRÍTICO!', {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '10px',
-      color: '#ff4444',
-      stroke: '#000000',
-      strokeThickness: 3,
-    }).setOrigin(0.5);
+    const texto = this.scene.add
+      .text(x, y - 40, '¡CRÍTICO!', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '10px',
+        color: '#ff4444',
+        stroke: '#000000',
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5);
 
     // Animación de rebote
     this.scene.tweens.add({
@@ -287,9 +301,9 @@ export class BattleEffects {
           targets: texto,
           alpha: 0,
           duration: 500,
-          onComplete: () => texto.destroy()
+          onComplete: () => texto.destroy(),
         });
-      }
+      },
     });
   }
 
@@ -323,7 +337,7 @@ export class BattleEffects {
       onComplete: () => {
         particles.destroy();
         if (callback) callback();
-      }
+      },
     });
   }
 
@@ -344,7 +358,7 @@ export class BattleEffects {
       ease: 'Quad.easeIn',
       onComplete: () => {
         if (callback) callback();
-      }
+      },
     });
   }
 
