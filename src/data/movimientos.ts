@@ -10,7 +10,8 @@ export const MOVIMIENTOS: Record<string, Movimiento> = {
     poder: 90,
     precision: 100,
     ppMax: 15,
-    descripcion: 'Lanza una intensa ráfaga de fuego.',
+    descripcion: 'Lanza una intensa ráfaga de fuego. Puede quemar.',
+    efectoEstado: { estado: 'quemado', probabilidad: 10 },
   },
   ascuas: {
     id: 'ascuas',
@@ -20,7 +21,8 @@ export const MOVIMIENTOS: Record<string, Movimiento> = {
     poder: 40,
     precision: 100,
     ppMax: 25,
-    descripcion: 'Ataca con pequeñas llamas.',
+    descripcion: 'Ataca con pequeñas llamas. Puede quemar.',
+    efectoEstado: { estado: 'quemado', probabilidad: 10 },
   },
 
   // Movimientos de Agua
@@ -76,7 +78,8 @@ export const MOVIMIENTOS: Record<string, Movimiento> = {
     poder: 90,
     precision: 100,
     ppMax: 15,
-    descripcion: 'Un potente ataque eléctrico.',
+    descripcion: 'Un potente ataque eléctrico. Puede paralizar.',
+    efectoEstado: { estado: 'paralizado', probabilidad: 10 },
   },
   impactrueno: {
     id: 'impactrueno',
@@ -86,7 +89,8 @@ export const MOVIMIENTOS: Record<string, Movimiento> = {
     poder: 40,
     precision: 100,
     ppMax: 30,
-    descripcion: 'Lanza una descarga eléctrica.',
+    descripcion: 'Lanza una descarga eléctrica. Puede paralizar.',
+    efectoEstado: { estado: 'paralizado', probabilidad: 10 },
   },
 
   // Movimientos de Tierra
@@ -120,7 +124,8 @@ export const MOVIMIENTOS: Record<string, Movimiento> = {
     poder: 90,
     precision: 100,
     ppMax: 10,
-    descripcion: 'Lanza un rayo de aire helado.',
+    descripcion: 'Lanza un rayo de aire helado. Puede congelar.',
+    efectoEstado: { estado: 'congelado', probabilidad: 10 },
   },
   ventisca: {
     id: 'ventisca',
@@ -130,7 +135,8 @@ export const MOVIMIENTOS: Record<string, Movimiento> = {
     poder: 110,
     precision: 70,
     ppMax: 5,
-    descripcion: 'Invoca una tormenta de nieve.',
+    descripcion: 'Invoca una tormenta de nieve. Puede congelar.',
+    efectoEstado: { estado: 'congelado', probabilidad: 10 },
   },
 
   // Movimientos de Volador
@@ -196,7 +202,8 @@ export const MOVIMIENTOS: Record<string, Movimiento> = {
     poder: 85,
     precision: 100,
     ppMax: 15,
-    descripcion: 'Ataca con todo el peso del cuerpo.',
+    descripcion: 'Ataca con todo el peso del cuerpo. Puede paralizar.',
+    efectoEstado: { estado: 'paralizado', probabilidad: 30 },
   },
 
   // Movimientos de Fantasma
@@ -218,7 +225,46 @@ export const MOVIMIENTOS: Record<string, Movimiento> = {
     poder: 30,
     precision: 100,
     ppMax: 30,
-    descripcion: 'Lame al enemigo con lengua espectral.',
+    descripcion: 'Lame al enemigo con lengua espectral. Puede paralizar.',
+    efectoEstado: { estado: 'paralizado', probabilidad: 30 },
+  },
+
+  // ═══════════════════════════════════════════════════════════════
+  // MOVIMIENTOS DE ESTADO (Fase 4.1.4)
+  // ═══════════════════════════════════════════════════════════════
+
+  hipnosis: {
+    id: 'hipnosis',
+    nombre: 'Hipnosis',
+    tipo: 'fantasma',
+    categoria: 'estado',
+    poder: 0,
+    precision: 60,
+    ppMax: 20,
+    descripcion: 'Hipnotiza al rival para dormirlo.',
+    efectoEstado: { estado: 'dormido', probabilidad: 100 },
+  },
+  toxico: {
+    id: 'toxico',
+    nombre: 'Tóxico',
+    tipo: 'normal',
+    categoria: 'estado',
+    poder: 0,
+    precision: 90,
+    ppMax: 10,
+    descripcion: 'Envenena gravemente al rival.',
+    efectoEstado: { estado: 'envenenado', probabilidad: 100 },
+  },
+  paralizador: {
+    id: 'paralizador',
+    nombre: 'Onda Trueno',
+    tipo: 'electrico',
+    categoria: 'estado',
+    poder: 0,
+    precision: 90,
+    ppMax: 20,
+    descripcion: 'Lanza una onda eléctrica que paraliza.',
+    efectoEstado: { estado: 'paralizado', probabilidad: 100 },
   },
 };
 

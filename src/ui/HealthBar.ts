@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
-import type { TipoElemental } from '@game-types/index';
+import type { TipoElemental, EstadoAlterado } from '@game-types/index';
 import { getTipoConfig } from '@data/index';
+import { getEstadoConfig } from '@systems/index';
 
 export interface HealthBarConfig {
   x: number;
@@ -28,6 +29,9 @@ export class HealthBar extends Phaser.GameObjects.Container {
   private tipoIcon!: Phaser.GameObjects.Graphics;
   private hpActual: number;
   private hpMax: number;
+  // Indicador de estado alterado
+  private statusBadge!: Phaser.GameObjects.Graphics;
+  private statusText!: Phaser.GameObjects.Text;
 
   constructor(scene: Phaser.Scene, config: HealthBarConfig) {
     super(scene, config.x, config.y);
@@ -100,6 +104,23 @@ export class HealthBar extends Phaser.GameObjects.Container {
       this.add(this.hpText);
       this.actualizarTextoHP();
     }
+
+    // Badge de estado alterado (inicialmente oculto)
+    this.statusBadge = this.scene.add.graphics();
+    this.statusBadge.setVisible(false);
+    this.add(this.statusBadge);
+
+    this.statusText = this.scene.add
+      .text(flipped ? width - 40 : 40, 22, '', {
+        fontFamily: '"Press Start 2P"',
+        fontSize: '6px',
+        color: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 2,
+      })
+      .setOrigin(flipped ? 1 : 0, 0.5);
+    this.statusText.setVisible(false);
+    this.add(this.statusText);
   }
 
   private dibujarFondoPanel(width: number, height: number, accentColor: number): void {
@@ -259,5 +280,58 @@ export class HealthBar extends Phaser.GameObjects.Container {
 
   getHP(): number {
     return this.hpActual;
+  }
+
+  /**
+   * Actualiza el indicador de estado alterado
+   * @param estado - El estado actual o null para ocultar
+   */
+  setEstado(estado: EstadoAlterado): void {
+    if (estado === null) {
+      // Ocultar indicador
+      this.statusBadge.setVisible(false);
+      this.statusText.setVisible(false);
+      return;
+    }
+
+    const config = getEstadoConfig(estado);
+    if (!config) return;
+
+    const { width, flipped } = this.config;
+    const color = Phaser.Display.Color.HexStringToColor(config.color).color;
+
+    // Posición del badge
+    const badgeX = flipped ? width - 70 : 35;
+    const badgeY = 22;
+    const badgeWidth = 30;
+    const badgeHeight = 12;
+
+    // Dibujar badge
+    this.statusBadge.clear();
+    this.statusBadge.fillStyle(color, 0.9);
+    this.statusBadge.fillRoundedRect(badgeX, badgeY - badgeHeight / 2, badgeWidth, badgeHeight, 3);
+    this.statusBadge.lineStyle(1, 0x000000, 0.5);
+    this.statusBadge.strokeRoundedRect(
+      badgeX,
+      badgeY - badgeHeight / 2,
+      badgeWidth,
+      badgeHeight,
+      3
+    );
+    this.statusBadge.setVisible(true);
+
+    // Actualizar texto (nombre corto del estado)
+    this.statusText.setText(config.nombre);
+    this.statusText.setX(flipped ? width - 55 : 50);
+    this.statusText.setVisible(true);
+
+    // Animación de pulso para llamar la atención
+    this.scene.tweens.add({
+      targets: [this.statusBadge, this.statusText],
+      alpha: { from: 0.5, to: 1 },
+      duration: 300,
+      yoyo: true,
+      repeat: 1,
+    });
   }
 }

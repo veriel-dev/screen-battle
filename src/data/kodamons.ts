@@ -58,7 +58,7 @@ export const KODAMONS: Record<string, KodamonData> = {
       defensaEspecial: 80,
       velocidad: 130,
     },
-    movimientos: ['rayo', 'impactrueno', 'placaje', 'tornado'],
+    movimientos: ['rayo', 'impactrueno', 'placaje', 'paralizador'],
     descripcion: 'Un roedor eléctrico muy veloz.',
   },
   terron: {
@@ -148,7 +148,7 @@ export const KODAMONS: Record<string, KodamonData> = {
       defensaEspecial: 75,
       velocidad: 110,
     },
-    movimientos: ['bolaSombra', 'lenguetazo', 'rayoHielo', 'rayo'],
+    movimientos: ['bolaSombra', 'lenguetazo', 'hipnosis', 'rayo'],
     descripcion: 'Un espíritu travieso que flota en las sombras.',
   },
 };

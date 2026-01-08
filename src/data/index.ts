@@ -9,3 +9,6 @@ export { MOVIMIENTOS, getMovimiento, getMovimientos } from './movimientos';
 
 // Kodamons
 export { KODAMONS, getKodamon, getAllKodamons, getRandomKodamon } from './kodamons';
+
+// Constantes de batalla
+export { BATTLE_CONSTANTS } from './constants';

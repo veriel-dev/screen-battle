@@ -342,22 +342,47 @@ export class BattleEffects {
   }
 
   /**
-   * Efecto de derrota (Kodamon cae)
+   * Efecto de derrota mejorado (Kodamon cae dramáticamente)
+   * Secuencia: Flash rojo → Shake → Tinte gris → Caída con rotación → Fade out
    */
   derrotaKodamon(sprite: Phaser.GameObjects.Image, callback?: () => void): void {
-    // Tinte gris
-    sprite.setTint(0x666666);
+    const baseX = sprite.x;
+    const baseY = sprite.y;
 
-    // Caer y desvanecerse
+    // Fase 1: Flash rojo de impacto final
+    sprite.setTint(0xff0000);
+
+    // Fase 2: Shake horizontal rápido
     this.scene.tweens.add({
       targets: sprite,
-      y: sprite.y + 20,
-      alpha: 0,
-      angle: -15,
-      duration: 600,
-      ease: 'Quad.easeIn',
+      x: baseX - 5,
+      duration: 50,
+      yoyo: true,
+      repeat: 3,
       onComplete: () => {
-        if (callback) callback();
+        sprite.x = baseX;
+
+        // Fase 3: Transición a gris (como perdiendo vida)
+        sprite.setTint(0x888888);
+
+        // Pequeña pausa antes de caer
+        this.scene.time.delayedCall(200, () => {
+          // Fase 4: Caída dramática con rotación y fade
+          this.scene.tweens.add({
+            targets: sprite,
+            y: baseY + 50, // Cae más que antes
+            alpha: 0,
+            angle: 20, // Rota hacia el lado
+            scaleX: 0.8, // Se encoge un poco
+            scaleY: 0.8,
+            duration: 800,
+            ease: 'Quad.easeIn',
+            onComplete: () => {
+              sprite.setVisible(false);
+              if (callback) callback();
+            },
+          });
+        });
       },
     });
   }

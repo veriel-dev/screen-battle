@@ -1,7 +1,19 @@
 import Phaser from 'phaser';
 import type { KodamonData, KodamonBatalla, Movimiento } from '@game-types/index';
-import { getRandomKodamon, getMovimiento, getEfectividad, getTextoEfectividad } from '@data/index';
-import { BattleEffects } from '@systems/index';
+import {
+  getRandomKodamon,
+  getMovimiento,
+  getEfectividad,
+  getTextoEfectividad,
+  BATTLE_CONSTANTS,
+} from '@data/index';
+import {
+  BattleEffects,
+  aplicarEstado,
+  getEstadoConfig,
+  calcularDañoPorEstado,
+  verificarPuedeAtacar,
+} from '@systems/index';
 import { HealthBar, MoveButton, DialogBox } from '@ui/index';
 
 type EstadoBatalla =
@@ -30,6 +42,12 @@ export class BattleScene extends Phaser.Scene {
   // Elementos visuales
   private jugadorSprite!: Phaser.GameObjects.Image;
   private enemigoSprite!: Phaser.GameObjects.Image;
+  // Tweens de animación idle (para pausar/reanudar)
+  private jugadorIdleTween!: Phaser.Tweens.Tween;
+  private enemigoIdleTween!: Phaser.Tweens.Tween;
+  // Posiciones base de los sprites (para restaurar después de animaciones)
+  private jugadorBaseY!: number;
+  private enemigoBaseY!: number;
 
   // UI Components
   private jugadorHpBar!: HealthBar;
@@ -82,6 +100,9 @@ export class BattleScene extends Phaser.Scene {
           ppActual: mov!.ppMax,
         };
       }),
+      // Estado alterado inicial: ninguno
+      estadoAlterado: null,
+      turnosEstado: 0,
     };
   }
 
@@ -92,14 +113,133 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private crearSprites(): void {
-    // Sprite del enemigo (arriba derecha)
-    this.enemigoSprite = this.add.image(400, 110, `kodamon-${this.enemigo.datos.id}`);
-    this.enemigoSprite.setScale(1.2);
+    // Posiciones finales de los sprites
+    const enemigoFinalY = 110;
+    const jugadorFinalY = 175;
 
-    // Sprite del jugador (abajo izquierda)
-    this.jugadorSprite = this.add.image(110, 175, `kodamon-${this.jugador.datos.id}`);
+    // Sprite del enemigo - empieza fuera de pantalla (derecha)
+    this.enemigoSprite = this.add.image(550, enemigoFinalY, `kodamon-${this.enemigo.datos.id}`);
+    this.enemigoSprite.setScale(1.2);
+    this.enemigoSprite.setAlpha(0);
+    this.enemigoBaseY = enemigoFinalY;
+
+    // Sprite del jugador - empieza fuera de pantalla (izquierda)
+    this.jugadorSprite = this.add.image(-50, jugadorFinalY, `kodamon-${this.jugador.datos.id}`);
     this.jugadorSprite.setScale(1.5);
-    this.jugadorSprite.setFlipX(true); // Mira hacia el enemigo
+    this.jugadorSprite.setFlipX(true);
+    this.jugadorSprite.setAlpha(0);
+    this.jugadorBaseY = jugadorFinalY;
+
+    // Las animaciones idle se inician después de la animación de entrada
+  }
+
+  /**
+   * Inicia la animación idle (respiración/flotación) para ambos Kodamon
+   * Crea un movimiento sutil de subir/bajar que da vida a los sprites
+   */
+  private iniciarAnimacionesIdle(): void {
+    // Animación idle del jugador - movimiento suave hacia arriba y abajo
+    this.jugadorIdleTween = this.tweens.add({
+      targets: this.jugadorSprite,
+      y: this.jugadorBaseY - 4, // Sube 4 píxeles
+      duration: 1000,
+      yoyo: true, // Vuelve a la posición original
+      repeat: -1, // Repite infinitamente
+      ease: 'Sine.easeInOut', // Movimiento suave sinusoidal
+    });
+
+    // Animación idle del enemigo - ligeramente desfasada para variedad
+    this.enemigoIdleTween = this.tweens.add({
+      targets: this.enemigoSprite,
+      y: this.enemigoBaseY - 3, // Sube 3 píxeles (un poco menos)
+      duration: 1200, // Duración diferente para que no estén sincronizados
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      delay: 300, // Pequeño desfase inicial
+    });
+  }
+
+  /**
+   * Pausa las animaciones idle (durante ataques y otras animaciones)
+   */
+  private pausarAnimacionesIdle(): void {
+    if (this.jugadorIdleTween) this.jugadorIdleTween.pause();
+    if (this.enemigoIdleTween) this.enemigoIdleTween.pause();
+  }
+
+  /**
+   * Reanuda las animaciones idle y restaura posiciones base
+   */
+  private reanudarAnimacionesIdle(): void {
+    // Restaurar posiciones base suavemente
+    this.tweens.add({
+      targets: this.jugadorSprite,
+      y: this.jugadorBaseY,
+      duration: 200,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        if (this.jugadorIdleTween) this.jugadorIdleTween.resume();
+      },
+    });
+
+    this.tweens.add({
+      targets: this.enemigoSprite,
+      y: this.enemigoBaseY,
+      duration: 200,
+      ease: 'Quad.easeOut',
+      onComplete: () => {
+        if (this.enemigoIdleTween) this.enemigoIdleTween.resume();
+      },
+    });
+  }
+
+  /**
+   * Anima el sprite del atacante moviéndose hacia el defensor
+   * Crea un efecto de "lunge" (embestida) antes del ataque
+   *
+   * @param esJugador - true si ataca el jugador, false si ataca el enemigo
+   * @returns Promise que se resuelve cuando la animación termina
+   */
+  private animarAtaque(esJugador: boolean): Promise<void> {
+    return new Promise((resolve) => {
+      const atacante = esJugador ? this.jugadorSprite : this.enemigoSprite;
+      const baseX = atacante.x;
+      const baseY = esJugador ? this.jugadorBaseY : this.enemigoBaseY;
+
+      // Dirección del movimiento: jugador va hacia la derecha, enemigo hacia la izquierda
+      const offsetX = esJugador ? 40 : -40;
+      // También un pequeño movimiento vertical hacia el oponente
+      const offsetY = esJugador ? -15 : 15;
+
+      // Timeline de animación: avanzar → pausa → regresar
+      this.tweens.chain({
+        targets: atacante,
+        tweens: [
+          {
+            // Fase 1: Avanzar hacia el enemigo (lunge)
+            x: baseX + offsetX,
+            y: baseY + offsetY,
+            duration: 150,
+            ease: 'Power2.easeOut',
+          },
+          {
+            // Fase 2: Pausa breve en posición de ataque
+            x: baseX + offsetX,
+            y: baseY + offsetY,
+            duration: 100,
+          },
+          {
+            // Fase 3: Regresar a posición original
+            x: baseX,
+            y: baseY,
+            duration: 200,
+            ease: 'Power2.easeIn',
+          },
+        ],
+        onComplete: () => resolve(),
+      });
+    });
   }
 
   private crearUI(): void {
@@ -231,18 +371,127 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private iniciarIntro(): void {
-    this.mostrarDialogo(`¡Un ${this.enemigo.datos.nombre} salvaje apareció!`, () => {
-      this.mostrarDialogo(`¡Adelante, ${this.jugador.datos.nombre}!`, () => {
-        this.iniciarTurnoJugador();
-      });
+    // Animación de entrada del enemigo (desde la derecha)
+    this.tweens.add({
+      targets: this.enemigoSprite,
+      x: 400,
+      alpha: 1,
+      duration: 600,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        // Después de que el enemigo entra, mostrar primer diálogo
+        this.mostrarDialogo(`¡Un ${this.enemigo.datos.nombre} salvaje apareció!`, () => {
+          // Animación de entrada del jugador (desde la izquierda)
+          this.tweens.add({
+            targets: this.jugadorSprite,
+            x: 110,
+            alpha: 1,
+            duration: 600,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+              // Iniciar animaciones idle después de que ambos estén en posición
+              this.iniciarAnimacionesIdle();
+
+              this.mostrarDialogo(`¡Adelante, ${this.jugador.datos.nombre}!`, () => {
+                // Determinar quién ataca primero según velocidad
+                const primero = this.determinarOrdenTurno();
+
+                // Obtener nombres para el mensaje
+                const nombreRapido =
+                  primero === 'jugador' ? this.jugador.datos.nombre : this.enemigo.datos.nombre;
+
+                // Mostrar quién es más rápido y comenzar el turno correspondiente
+                this.mostrarDialogo(`¡${nombreRapido} es más rápido!`, () => {
+                  if (primero === 'jugador') {
+                    this.iniciarTurnoJugador();
+                  } else {
+                    this.turnoEnemigo();
+                  }
+                });
+              });
+            },
+          });
+        });
+      },
     });
   }
 
   private iniciarTurnoJugador(): void {
     this._estado = 'JUGADOR_TURNO';
     this.mostrarIndicadorTurno(this.jugador.datos.nombre, true);
-    this.dialogBox.setText(`¿Qué debería hacer ${this.jugador.datos.nombre}?`);
-    this.mostrarBotonesMovimientos();
+
+    // Reanudar animaciones idle al inicio del turno
+    this.reanudarAnimacionesIdle();
+
+    // Procesar estado alterado al inicio del turno
+    this.procesarEstadoTurno(this.jugador, this.jugadorHpBar, () => {
+      // Si el jugador murió por daño de estado, verificar derrota
+      if (this.jugador.hpActual <= 0) {
+        this.verificarDerrotaJugador();
+        return;
+      }
+
+      // Verificar si puede atacar (dormido, congelado, paralizado)
+      const { puedeAtacar, mensaje } = verificarPuedeAtacar(this.jugador);
+      if (!puedeAtacar) {
+        this.mostrarDialogo(mensaje, () => {
+          // Pasa el turno al enemigo
+          this.turnoEnemigo();
+        });
+        return;
+      }
+
+      // Si se despertó o descongeló, mostrar mensaje primero
+      if (mensaje) {
+        this.mostrarDialogo(mensaje, () => {
+          this.dialogBox.setText(`¿Qué debería hacer ${this.jugador.datos.nombre}?`);
+          this.mostrarBotonesMovimientos();
+        });
+        return;
+      }
+
+      // Turno normal
+      this.dialogBox.setText(`¿Qué debería hacer ${this.jugador.datos.nombre}?`);
+      this.mostrarBotonesMovimientos();
+    });
+  }
+
+  /**
+   * Procesa el estado alterado de un Kodamon al inicio de su turno
+   * Aplica daño por quemadura/veneno y llama al callback cuando termina
+   */
+  private procesarEstadoTurno(
+    kodamon: KodamonBatalla,
+    hpBar: HealthBar,
+    callback: () => void
+  ): void {
+    // Si no tiene estado, continuar directamente
+    if (kodamon.estadoAlterado === null) {
+      callback();
+      return;
+    }
+
+    // Calcular daño por estado (quemadura o veneno)
+    const dañoEstado = calcularDañoPorEstado(kodamon);
+
+    if (dañoEstado > 0) {
+      const config = getEstadoConfig(kodamon.estadoAlterado);
+      const nombreEstado = config?.nombre.toLowerCase() || kodamon.estadoAlterado;
+
+      this.mostrarDialogo(`¡${kodamon.datos.nombre} sufre por estar ${nombreEstado}!`, () => {
+        // Aplicar daño
+        kodamon.hpActual = Math.max(0, kodamon.hpActual - dañoEstado);
+        hpBar.setHP(kodamon.hpActual);
+
+        // Mostrar daño flotante
+        const sprite = kodamon === this.jugador ? this.jugadorSprite : this.enemigoSprite;
+        this.mostrarDañoFlotante(sprite.x, sprite.y, dañoEstado, 1, false);
+
+        this.time.delayedCall(500, callback);
+      });
+    } else {
+      callback();
+    }
   }
 
   private mostrarBotonesMovimientos(): void {
@@ -292,53 +541,256 @@ export class BattleScene extends Phaser.Scene {
     const movData = this.jugador.movimientosActuales[index];
     movData.ppActual--;
 
-    const daño = this.calcularDaño(this.jugador, this.enemigo, movData.movimiento);
-    const efectividad = getEfectividad(movData.movimiento.tipo, this.enemigo.datos.tipo);
-    const textoEfectividad = getTextoEfectividad(efectividad);
-
     this.mostrarDialogo(`¡${this.jugador.datos.nombre} usó ${movData.movimiento.nombre}!`, () => {
-      // Efecto de ataque con partículas
-      this.effects.atacar(
-        movData.movimiento.tipo,
-        { x: this.jugadorSprite.x, y: this.jugadorSprite.y },
-        { x: this.enemigoSprite.x, y: this.enemigoSprite.y },
-        () => {
-          // Efecto de daño recibido
-          this.effects.recibirDano(this.enemigoSprite);
+      // Verificar si el ataque acierta según la precisión
+      const acierta = this.intentarAtaque(movData.movimiento);
 
-          // Mostrar número de daño flotante
-          this.mostrarDañoFlotante(
-            this.enemigoSprite.x,
-            this.enemigoSprite.y,
-            daño,
-            efectividad
-          );
+      if (!acierta) {
+        // El ataque falló - mostrar mensaje y pasar turno
+        this.mostrarDialogo('¡El ataque falló!', () => {
+          this.verificarFinBatalla();
+        });
+        return;
+      }
 
-          this.enemigo.hpActual = Math.max(0, this.enemigo.hpActual - daño);
-          this.enemigoHpBar.setHP(this.enemigo.hpActual);
-
-          // Mostrar efecto de efectividad
-          if (efectividad >= 2) {
-            this.effects.superEfectivo(this.enemigoSprite.x, this.enemigoSprite.y);
-          } else if (efectividad > 0 && efectividad < 1) {
-            this.effects.pocoEfectivo(this.enemigoSprite.x, this.enemigoSprite.y);
-          }
-
-          if (textoEfectividad) {
-            this.mostrarDialogo(textoEfectividad, () => this.verificarFinBatalla());
-          } else {
-            this.time.delayedCall(500, () => this.verificarFinBatalla());
+      // ═══════════════════════════════════════════════════════════════
+      // MOVIMIENTOS DE ESTADO PURO (sin daño)
+      // ═══════════════════════════════════════════════════════════════
+      if (movData.movimiento.categoria === 'estado') {
+        // Solo intentar aplicar el estado, no hay daño
+        const estadoAplicado = this.intentarAplicarEstado(movData.movimiento, this.enemigo);
+        if (estadoAplicado) {
+          // Actualizar indicador visual de estado
+          this.enemigoHpBar.setEstado(this.enemigo.estadoAlterado);
+          const config = getEstadoConfig(this.enemigo.estadoAlterado);
+          if (config) {
+            this.mostrarDialogo(
+              `¡${this.enemigo.datos.nombre} ha sido ${config.nombre.toLowerCase()}!`,
+              () => this.verificarFinBatalla()
+            );
+            return;
           }
         }
-      );
+        // Si no se aplicó (ya tenía estado), mostrar mensaje
+        this.mostrarDialogo('¡Pero falló!', () => this.verificarFinBatalla());
+        return;
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // MOVIMIENTOS DE DAÑO (físico o especial)
+      // ═══════════════════════════════════════════════════════════════
+      const { daño, critico } = this.calcularDaño(this.jugador, this.enemigo, movData.movimiento);
+      const efectividad = getEfectividad(movData.movimiento.tipo, this.enemigo.datos.tipo);
+      const textoEfectividad = getTextoEfectividad(efectividad);
+
+      // Pausar animación idle durante el ataque
+      this.pausarAnimacionesIdle();
+
+      // Animación de lunge del atacante, luego efecto de partículas
+      this.animarAtaque(true).then(() => {
+        // Efecto de ataque con partículas
+        this.effects.atacar(
+          movData.movimiento.tipo,
+          { x: this.jugadorSprite.x, y: this.jugadorSprite.y },
+          { x: this.enemigoSprite.x, y: this.enemigoSprite.y },
+          () => {
+            // Efecto de daño recibido
+            this.effects.recibirDano(this.enemigoSprite);
+
+            // Mostrar número de daño flotante (pasamos critico para el efecto visual)
+            this.mostrarDañoFlotante(
+              this.enemigoSprite.x,
+              this.enemigoSprite.y,
+              daño,
+              efectividad,
+              critico
+            );
+
+            this.enemigo.hpActual = Math.max(0, this.enemigo.hpActual - daño);
+            this.enemigoHpBar.setHP(this.enemigo.hpActual);
+
+            // Mostrar efecto de efectividad
+            if (efectividad >= 2) {
+              this.effects.superEfectivo(this.enemigoSprite.x, this.enemigoSprite.y);
+            } else if (efectividad > 0 && efectividad < 1) {
+              this.effects.pocoEfectivo(this.enemigoSprite.x, this.enemigoSprite.y);
+            }
+
+            // Función para verificar fin de batalla (paso final)
+            const finalizarTurno = () => {
+              this.verificarFinBatalla();
+            };
+
+            // Función para mostrar mensaje de estado alterado si se aplicó
+            const continuarConEstado = () => {
+              // Solo intentar aplicar estado si el enemigo sigue vivo
+              if (this.enemigo.hpActual > 0) {
+                const estadoAplicado = this.intentarAplicarEstado(movData.movimiento, this.enemigo);
+                if (estadoAplicado) {
+                  // Actualizar indicador visual de estado
+                  this.enemigoHpBar.setEstado(this.enemigo.estadoAlterado);
+                  const config = getEstadoConfig(this.enemigo.estadoAlterado);
+                  if (config) {
+                    this.mostrarDialogo(
+                      `¡${this.enemigo.datos.nombre} ha sido ${config.nombre.toLowerCase()}!`,
+                      finalizarTurno
+                    );
+                    return;
+                  }
+                }
+              }
+              finalizarTurno();
+            };
+
+            // Función para mostrar efectividad
+            const continuarConEfectividad = () => {
+              if (textoEfectividad) {
+                this.mostrarDialogo(textoEfectividad, continuarConEstado);
+              } else {
+                continuarConEstado();
+              }
+            };
+
+            // Si fue crítico, mostrar mensaje antes de continuar
+            if (critico) {
+              this.mostrarDialogo('¡Golpe crítico!', continuarConEfectividad);
+            } else {
+              continuarConEfectividad();
+            }
+          }
+        );
+      }); // Fin de animarAtaque().then()
     });
   }
 
+  /**
+   * Determina quién ataca primero basándose en la velocidad
+   *
+   * Reglas:
+   * - El Kodamon con mayor velocidad ataca primero
+   * - En caso de empate, se decide aleatoriamente (50/50)
+   *
+   * @returns 'jugador' si el jugador es más rápido, 'enemigo' si no
+   */
+  private determinarOrdenTurno(): 'jugador' | 'enemigo' {
+    const velJugador = this.jugador.datos.estadisticas.velocidad;
+    const velEnemigo = this.enemigo.datos.estadisticas.velocidad;
+
+    console.log(
+      `[Velocidad] ${this.jugador.datos.nombre}: ${velJugador} vs ${this.enemigo.datos.nombre}: ${velEnemigo}`
+    );
+
+    // Si las velocidades son iguales, decidir aleatoriamente
+    if (velJugador === velEnemigo) {
+      const resultado = Math.random() < 0.5 ? 'jugador' : 'enemigo';
+      console.log(`[Velocidad] Empate! Decidido por azar: ${resultado}`);
+      return resultado;
+    }
+
+    // El más rápido ataca primero
+    const resultado = velJugador > velEnemigo ? 'jugador' : 'enemigo';
+    console.log(`[Velocidad] Más rápido: ${resultado}`);
+    return resultado;
+  }
+
+  /**
+   * Determina si un ataque es crítico
+   *
+   * Probabilidad base: 6.25% (1/16)
+   * Esto significa que aproximadamente 1 de cada 16 ataques será crítico
+   *
+   * @returns true si el ataque es crítico, false si no
+   */
+  private esCritico(): boolean {
+    // Generar número aleatorio entre 0 y 1
+    const roll = Math.random();
+
+    // Comparar con la probabilidad de crítico (0.0625 = 6.25%)
+    const esCrit = roll < BATTLE_CONSTANTS.CRITICAL_CHANCE;
+
+    if (esCrit) {
+      console.log(
+        `[Crítico] ¡GOLPE CRÍTICO! (roll: ${roll.toFixed(4)} < ${BATTLE_CONSTANTS.CRITICAL_CHANCE})`
+      );
+    }
+
+    return esCrit;
+  }
+
+  /**
+   * Determina si un ataque acierta basándose en la precisión del movimiento
+   *
+   * @param movimiento - El movimiento a intentar
+   * @returns true si el ataque acierta, false si falla
+   */
+  private intentarAtaque(movimiento: Movimiento): boolean {
+    // Si precisión es 100 o más, siempre acierta (optimización)
+    if (movimiento.precision >= 100) {
+      return true;
+    }
+
+    // Generar número aleatorio entre 0 y 100
+    const roll = Math.random() * 100;
+
+    // El ataque acierta si el roll es menor que la precisión
+    const acierta = roll < movimiento.precision;
+
+    console.log(
+      `[Precisión] ${movimiento.nombre}: roll ${roll.toFixed(1)} vs precision ${movimiento.precision} → ${acierta ? 'ACIERTA' : 'FALLA'}`
+    );
+
+    return acierta;
+  }
+
+  /**
+   * Intenta aplicar el efecto de estado de un movimiento al defensor
+   *
+   * @param movimiento - El movimiento usado
+   * @param defensor - El Kodamon que recibe el efecto
+   * @returns true si se aplicó el estado, false si no
+   */
+  private intentarAplicarEstado(movimiento: Movimiento, defensor: KodamonBatalla): boolean {
+    // Si el movimiento no tiene efecto de estado, no hacer nada
+    if (!movimiento.efectoEstado) {
+      return false;
+    }
+
+    // Si el defensor ya tiene un estado, no se puede aplicar otro
+    if (defensor.estadoAlterado !== null) {
+      console.log(
+        `[Estado] ${defensor.datos.nombre} ya tiene ${defensor.estadoAlterado}, ` +
+          `no se puede aplicar ${movimiento.efectoEstado.estado}`
+      );
+      return false;
+    }
+
+    // Tirar dado para ver si se aplica el estado
+    const roll = Math.random() * 100;
+    const aplica = roll < movimiento.efectoEstado.probabilidad;
+
+    console.log(
+      `[Estado] ${movimiento.nombre}: roll ${roll.toFixed(1)} vs ` +
+        `prob ${movimiento.efectoEstado.probabilidad}% → ${aplica ? 'APLICA' : 'NO APLICA'}`
+    );
+
+    if (aplica) {
+      aplicarEstado(defensor, movimiento.efectoEstado.estado);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Calcula el daño de un ataque
+   *
+   * @returns Objeto con el daño calculado y si fue crítico
+   */
   private calcularDaño(
     atacante: KodamonBatalla,
     defensor: KodamonBatalla,
     movimiento: Movimiento
-  ): number {
+  ): { daño: number; critico: boolean } {
     const statsAtacante = atacante.datos.estadisticas;
     const statsDefensor = defensor.datos.estadisticas;
 
@@ -349,62 +801,113 @@ export class BattleScene extends Phaser.Scene {
       movimiento.categoria === 'fisico' ? statsDefensor.defensa : statsDefensor.defensaEspecial;
 
     // Fórmula simplificada de daño
-    const nivel = 50; // Nivel fijo por ahora
+    const nivel = BATTLE_CONSTANTS.NIVEL_BASE;
     const base = (((2 * nivel) / 5 + 2) * movimiento.poder * (ataque / defensa)) / 50 + 2;
 
     // Efectividad de tipo
     const efectividad = getEfectividad(movimiento.tipo, defensor.datos.tipo);
 
     // STAB (Same Type Attack Bonus)
-    const stab = movimiento.tipo === atacante.datos.tipo ? 1.5 : 1;
+    const stab = movimiento.tipo === atacante.datos.tipo ? BATTLE_CONSTANTS.STAB_MULTIPLIER : 1;
 
     // Variación aleatoria (85-100%)
-    const random = 0.85 + Math.random() * 0.15;
+    const random =
+      BATTLE_CONSTANTS.RANDOM_MIN +
+      Math.random() * (BATTLE_CONSTANTS.RANDOM_MAX - BATTLE_CONSTANTS.RANDOM_MIN);
 
-    return Math.floor(base * efectividad * stab * random);
+    // Verificar si es golpe crítico
+    const critico = this.esCritico();
+    const multiplicadorCritico = critico ? BATTLE_CONSTANTS.CRITICAL_MULTIPLIER : 1;
+
+    // Calcular daño final
+    const dañoFinal = Math.floor(base * efectividad * stab * random * multiplicadorCritico);
+
+    return { daño: dañoFinal, critico };
   }
 
   /**
    * Muestra el daño como número flotante animado
+   *
+   * @param x - Posición X del sprite
+   * @param y - Posición Y del sprite
+   * @param daño - Cantidad de daño a mostrar
+   * @param efectividad - Multiplicador de efectividad (0, 0.5, 1, 2)
+   * @param critico - Si el golpe fue crítico (prioridad visual máxima)
    */
   private mostrarDañoFlotante(
     x: number,
     y: number,
     daño: number,
-    efectividad: number
+    efectividad: number,
+    critico: boolean = false
   ): void {
-    // Color según efectividad
-    let color = '#ffffff';
-    let fontSize = '14px';
+    // Determinar estilo visual según tipo de golpe
+    // Prioridad: Crítico > Súper Efectivo > Normal > Poco Efectivo > Sin Efecto
+    let color: string;
+    let fontSize: string;
+    let textoMostrar: string;
+    let escalaFinal: number;
 
-    if (efectividad >= 2) {
-      color = '#ffdd44'; // Súper efectivo - dorado
+    if (critico) {
+      // CRÍTICO: Máxima prioridad visual
+      color = '#ff6644'; // Naranja brillante
+      fontSize = '22px';
+      textoMostrar = `-${daño}!`; // Añadir exclamación
+      escalaFinal = 1.5;
+    } else if (efectividad >= 2) {
+      // Súper efectivo
+      color = '#ffdd44'; // Dorado
       fontSize = '18px';
+      textoMostrar = `-${daño}`;
+      escalaFinal = 1.3;
     } else if (efectividad > 0 && efectividad < 1) {
-      color = '#888888'; // Poco efectivo - gris
+      // Poco efectivo
+      color = '#888888'; // Gris
       fontSize = '12px';
+      textoMostrar = `-${daño}`;
+      escalaFinal = 1.0;
     } else if (efectividad === 0) {
-      color = '#444444'; // Sin efecto
+      // Sin efecto
+      color = '#444444'; // Gris oscuro
       fontSize = '10px';
+      textoMostrar = `-${daño}`;
+      escalaFinal = 0.8;
+    } else {
+      // Normal
+      color = '#ffffff'; // Blanco
+      fontSize = '14px';
+      textoMostrar = `-${daño}`;
+      escalaFinal = 1.2;
     }
 
     const texto = this.add
-      .text(x, y - 20, `-${daño}`, {
+      .text(x, y - 20, textoMostrar, {
         fontFamily: '"Press Start 2P"',
         fontSize: fontSize,
         color: color,
         stroke: '#000000',
-        strokeThickness: 3,
+        strokeThickness: 4,
       })
       .setOrigin(0.5);
 
-    // Animación: sube y desaparece
+    // Si es crítico, añadir efecto de sacudida inicial
+    if (critico) {
+      this.tweens.add({
+        targets: texto,
+        x: { from: x - 3, to: x + 3 },
+        duration: 50,
+        yoyo: true,
+        repeat: 2,
+      });
+    }
+
+    // Animación principal: sube y desaparece
     this.tweens.add({
       targets: texto,
       y: y - 60,
       alpha: 0,
-      scale: 1.2,
-      duration: 1000,
+      scale: escalaFinal,
+      duration: critico ? 1200 : 1000, // Críticos duran más
       ease: 'Power2',
       onComplete: () => texto.destroy(),
     });
@@ -413,6 +916,11 @@ export class BattleScene extends Phaser.Scene {
   private verificarFinBatalla(): void {
     if (this.enemigo.hpActual <= 0) {
       this._estado = 'VICTORIA';
+      // Detener animación idle del enemigo antes de la animación de derrota
+      if (this.enemigoIdleTween) {
+        this.enemigoIdleTween.stop();
+        this.enemigoSprite.y = this.enemigoBaseY;
+      }
       // Efecto de derrota del enemigo
       this.effects.derrotaKodamon(this.enemigoSprite);
       this.mostrarDialogo(`¡${this.enemigo.datos.nombre} se debilitó!`, () => {
@@ -431,6 +939,44 @@ export class BattleScene extends Phaser.Scene {
     this._estado = 'ENEMIGO_TURNO';
     this.mostrarIndicadorTurno(this.enemigo.datos.nombre, false);
 
+    // Reanudar animaciones idle al inicio del turno
+    this.reanudarAnimacionesIdle();
+
+    // Procesar estado alterado al inicio del turno
+    this.procesarEstadoTurno(this.enemigo, this.enemigoHpBar, () => {
+      // Si el enemigo murió por daño de estado, verificar victoria
+      if (this.enemigo.hpActual <= 0) {
+        this.verificarFinBatalla();
+        return;
+      }
+
+      // Verificar si puede atacar (dormido, congelado, paralizado)
+      const { puedeAtacar, mensaje } = verificarPuedeAtacar(this.enemigo);
+      if (!puedeAtacar) {
+        this.mostrarDialogo(mensaje, () => {
+          // Pasa el turno al jugador
+          this.iniciarTurnoJugador();
+        });
+        return;
+      }
+
+      // Si se despertó o descongeló, mostrar mensaje primero
+      if (mensaje) {
+        this.mostrarDialogo(mensaje, () => {
+          this.ejecutarAtaqueEnemigo();
+        });
+        return;
+      }
+
+      // Turno normal del enemigo
+      this.ejecutarAtaqueEnemigo();
+    });
+  }
+
+  /**
+   * Ejecuta el ataque del enemigo (separado para poder llamar después del procesamiento de estado)
+   */
+  private ejecutarAtaqueEnemigo(): void {
     // El enemigo elige un movimiento aleatorio con PP
     const movimientosDisponibles = this.enemigo.movimientosActuales.filter((m) => m.ppActual > 0);
     if (movimientosDisponibles.length === 0) {
@@ -446,54 +992,139 @@ export class BattleScene extends Phaser.Scene {
       movimientosDisponibles[Math.floor(Math.random() * movimientosDisponibles.length)];
     movData.ppActual--;
 
-    const daño = this.calcularDaño(this.enemigo, this.jugador, movData.movimiento);
-    const efectividad = getEfectividad(movData.movimiento.tipo, this.jugador.datos.tipo);
-    const textoEfectividad = getTextoEfectividad(efectividad);
-
     // Ocultar indicador antes de atacar
     this.time.delayedCall(800, () => this.ocultarIndicadorTurno());
 
     this.mostrarDialogo(`¡${this.enemigo.datos.nombre} usó ${movData.movimiento.nombre}!`, () => {
-      // Efecto de ataque con partículas
-      this.effects.atacar(
-        movData.movimiento.tipo,
-        { x: this.enemigoSprite.x, y: this.enemigoSprite.y },
-        { x: this.jugadorSprite.x, y: this.jugadorSprite.y },
-        () => {
-          // Efecto de daño recibido
-          this.effects.recibirDano(this.jugadorSprite);
+      // Verificar si el ataque acierta según la precisión
+      const acierta = this.intentarAtaque(movData.movimiento);
 
-          // Mostrar número de daño flotante
-          this.mostrarDañoFlotante(
-            this.jugadorSprite.x,
-            this.jugadorSprite.y,
-            daño,
-            efectividad
-          );
+      if (!acierta) {
+        // El ataque falló - mostrar mensaje y pasar turno
+        this.mostrarDialogo('¡El ataque falló!', () => {
+          this.verificarDerrotaJugador();
+        });
+        return;
+      }
 
-          this.jugador.hpActual = Math.max(0, this.jugador.hpActual - daño);
-          this.jugadorHpBar.setHP(this.jugador.hpActual);
-
-          // Mostrar efecto de efectividad
-          if (efectividad >= 2) {
-            this.effects.superEfectivo(this.jugadorSprite.x, this.jugadorSprite.y);
-          } else if (efectividad > 0 && efectividad < 1) {
-            this.effects.pocoEfectivo(this.jugadorSprite.x, this.jugadorSprite.y);
-          }
-
-          if (textoEfectividad) {
-            this.mostrarDialogo(textoEfectividad, () => this.verificarDerrotaJugador());
-          } else {
-            this.time.delayedCall(500, () => this.verificarDerrotaJugador());
+      // ═══════════════════════════════════════════════════════════════
+      // MOVIMIENTOS DE ESTADO PURO (sin daño)
+      // ═══════════════════════════════════════════════════════════════
+      if (movData.movimiento.categoria === 'estado') {
+        // Solo intentar aplicar el estado, no hay daño
+        const estadoAplicado = this.intentarAplicarEstado(movData.movimiento, this.jugador);
+        if (estadoAplicado) {
+          // Actualizar indicador visual de estado
+          this.jugadorHpBar.setEstado(this.jugador.estadoAlterado);
+          const config = getEstadoConfig(this.jugador.estadoAlterado);
+          if (config) {
+            this.mostrarDialogo(
+              `¡${this.jugador.datos.nombre} ha sido ${config.nombre.toLowerCase()}!`,
+              () => this.verificarDerrotaJugador()
+            );
+            return;
           }
         }
-      );
+        // Si no se aplicó (ya tenía estado), mostrar mensaje
+        this.mostrarDialogo('¡Pero falló!', () => this.verificarDerrotaJugador());
+        return;
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // MOVIMIENTOS DE DAÑO (físico o especial)
+      // ═══════════════════════════════════════════════════════════════
+      const { daño, critico } = this.calcularDaño(this.enemigo, this.jugador, movData.movimiento);
+      const efectividad = getEfectividad(movData.movimiento.tipo, this.jugador.datos.tipo);
+      const textoEfectividad = getTextoEfectividad(efectividad);
+
+      // Pausar animación idle durante el ataque
+      this.pausarAnimacionesIdle();
+
+      // Animación de lunge del atacante, luego efecto de partículas
+      this.animarAtaque(false).then(() => {
+        // Efecto de ataque con partículas
+        this.effects.atacar(
+          movData.movimiento.tipo,
+          { x: this.enemigoSprite.x, y: this.enemigoSprite.y },
+          { x: this.jugadorSprite.x, y: this.jugadorSprite.y },
+          () => {
+            // Efecto de daño recibido
+            this.effects.recibirDano(this.jugadorSprite);
+
+            // Mostrar número de daño flotante (pasamos critico para el efecto visual)
+            this.mostrarDañoFlotante(
+              this.jugadorSprite.x,
+              this.jugadorSprite.y,
+              daño,
+              efectividad,
+              critico
+            );
+
+            this.jugador.hpActual = Math.max(0, this.jugador.hpActual - daño);
+            this.jugadorHpBar.setHP(this.jugador.hpActual);
+
+            // Mostrar efecto de efectividad
+            if (efectividad >= 2) {
+              this.effects.superEfectivo(this.jugadorSprite.x, this.jugadorSprite.y);
+            } else if (efectividad > 0 && efectividad < 1) {
+              this.effects.pocoEfectivo(this.jugadorSprite.x, this.jugadorSprite.y);
+            }
+
+            // Función para verificar derrota (paso final)
+            const finalizarTurno = () => {
+              this.verificarDerrotaJugador();
+            };
+
+            // Función para mostrar mensaje de estado alterado si se aplicó
+            const continuarConEstado = () => {
+              // Solo intentar aplicar estado si el jugador sigue vivo
+              if (this.jugador.hpActual > 0) {
+                const estadoAplicado = this.intentarAplicarEstado(movData.movimiento, this.jugador);
+                if (estadoAplicado) {
+                  // Actualizar indicador visual de estado
+                  this.jugadorHpBar.setEstado(this.jugador.estadoAlterado);
+                  const config = getEstadoConfig(this.jugador.estadoAlterado);
+                  if (config) {
+                    this.mostrarDialogo(
+                      `¡${this.jugador.datos.nombre} ha sido ${config.nombre.toLowerCase()}!`,
+                      finalizarTurno
+                    );
+                    return;
+                  }
+                }
+              }
+              finalizarTurno();
+            };
+
+            // Función para mostrar efectividad
+            const continuarConEfectividad = () => {
+              if (textoEfectividad) {
+                this.mostrarDialogo(textoEfectividad, continuarConEstado);
+              } else {
+                continuarConEstado();
+              }
+            };
+
+            // Si fue crítico, mostrar mensaje antes de continuar
+            if (critico) {
+              this.mostrarDialogo('¡Golpe crítico!', continuarConEfectividad);
+            } else {
+              continuarConEfectividad();
+            }
+          }
+        );
+      }); // Fin de animarAtaque().then()
     });
   }
 
   private verificarDerrotaJugador(): void {
     if (this.jugador.hpActual <= 0) {
       this._estado = 'DERROTA';
+      // Detener animación idle del jugador antes de la animación de derrota
+      if (this.jugadorIdleTween) {
+        this.jugadorIdleTween.stop();
+        this.jugadorSprite.y = this.jugadorBaseY;
+      }
       // Efecto de derrota del jugador
       this.effects.derrotaKodamon(this.jugadorSprite);
       this.mostrarDialogo(`¡${this.jugador.datos.nombre} se debilitó!`, () => {
