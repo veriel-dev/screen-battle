@@ -82,6 +82,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Reset de arrays para evitar referencias corruptas al reiniciar escena
+    this.moveButtons = [];
+
     this.cameras.main.fadeIn(400);
 
     // Inicializar sistema de efectos
@@ -1266,5 +1269,27 @@ export class BattleScene extends Phaser.Scene {
         this.scene.start('MenuScene');
       });
     });
+  }
+
+  /**
+   * Limpieza al cerrar la escena para evitar errores de tweens huérfanos
+   */
+  shutdown(): void {
+    // Detener todos los tweens de esta escena
+    this.tweens.killAll();
+
+    // Detener todos los timers
+    this.time.removeAllEvents();
+
+    // Limpiar postFX de los sprites para evitar errores de renderizado
+    if (this.jugadorSprite?.postFX) {
+      this.jugadorSprite.postFX.clear();
+    }
+    if (this.enemigoSprite?.postFX) {
+      this.enemigoSprite.postFX.clear();
+    }
+
+    // Limpiar referencias de UI
+    this.moveButtons = [];
   }
 }

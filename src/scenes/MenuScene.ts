@@ -44,6 +44,12 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Reset de arrays para evitar referencias corruptas al reiniciar escena
+    this.kodamonCards = [];
+    this.filtroButtons = [];
+    this.statsTexts = [];
+    this.statsValues = [];
+
     this.kodamons = getAllKodamons();
     this.kodamonsFiltrados = [...this.kodamons];
     this.selectedIndex = 0;
@@ -738,5 +744,22 @@ export class MenuScene extends Phaser.Scene {
         });
       },
     });
+  }
+
+  /**
+   * Limpieza al cerrar la escena para evitar errores de tweens huérfanos
+   */
+  shutdown(): void {
+    // Detener todos los tweens de esta escena
+    this.tweens.killAll();
+
+    // Detener todos los timers
+    this.time.removeAllEvents();
+
+    // Limpiar arrays de referencias
+    this.kodamonCards = [];
+    this.filtroButtons = [];
+    this.statsTexts = [];
+    this.statsValues = [];
   }
 }
