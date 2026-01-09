@@ -3,6 +3,7 @@ import { CYBER_THEME, drawCyberPanel, drawCyberGrid, CYBER_TEXT_STYLES } from '@
 import { getPersistenceManager } from '@systems/PersistenceManager';
 import { AudioManager } from '@systems/AudioManager';
 import { AudioControls } from '@ui/AudioControls';
+import { GridRunners } from '@ui/GridRunners';
 import type {
   GameMode,
   MenuToModeData,
@@ -48,6 +49,7 @@ const MODES: ModeOption[] = [
 
 export class ModeSelectScene extends Phaser.Scene {
   private audio!: AudioManager;
+  private gridRunners!: GridRunners;
   private playerKodamonId: string = '';
   private arenaId: string = '';
   private selectedMode: GameMode = 'libre';
@@ -76,6 +78,16 @@ export class ModeSelectScene extends Phaser.Scene {
     // Grid cyberpunk
     const gridGraphics = this.add.graphics();
     drawCyberGrid(gridGraphics, width, height);
+
+    // Partículas estilo Tron que viajan por el grid (debajo de UI)
+    this.gridRunners = new GridRunners(this, width, height, {
+      gridSize: 30,
+      particleCount: 2,
+      minSpeed: 40,
+      maxSpeed: 70,
+      trailLength: 12,
+      blurLayers: 6,
+    });
 
     // Panel principal
     const panelGraphics = this.add.graphics();
@@ -436,6 +448,11 @@ export class ModeSelectScene extends Phaser.Scene {
     // Limpiar audio
     if (this.audio) {
       this.audio.destroy();
+    }
+
+    // Limpiar grid runners
+    if (this.gridRunners) {
+      this.gridRunners.destroy();
     }
 
     // Limpiar arrays

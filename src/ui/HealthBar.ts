@@ -3,6 +3,7 @@ import type { TipoElemental, EstadoAlterado } from '@game-types/index';
 import { getTipoConfig } from '@data/index';
 import { getEstadoConfig } from '@systems/index';
 import { CYBER_THEME, drawCyberPanel } from './theme';
+import { drawTypeIcon } from './TypeIcons';
 
 export interface HealthBarConfig {
   x: number;
@@ -24,7 +25,7 @@ export class HealthBar extends Phaser.GameObjects.Container {
   private config: Required<HealthBarConfig>;
   private background!: Phaser.GameObjects.Graphics;
   private tipoIconBg!: Phaser.GameObjects.Graphics;
-  private tipoIconText!: Phaser.GameObjects.Text;
+  private tipoIconGraphics!: Phaser.GameObjects.Graphics;
   private hpBarBg!: Phaser.GameObjects.Graphics;
   private hpBarFill!: Phaser.GameObjects.Graphics;
   private nombreText!: Phaser.GameObjects.Text;
@@ -70,31 +71,30 @@ export class HealthBar extends Phaser.GameObjects.Container {
     });
     this.add(this.background);
 
-    // Icono del tipo (círculo con símbolo Cyber)
+    // Icono del tipo (círculo con símbolo Cyber - iconos vectoriales)
     const iconX = flipped ? width - 18 : 18;
     const iconY = 14;
 
     this.tipoIconBg = this.scene.add.graphics();
     // Glow exterior
     this.tipoIconBg.fillStyle(tipoColor, 0.3);
-    this.tipoIconBg.fillCircle(iconX, iconY, 11);
+    this.tipoIconBg.fillCircle(iconX, iconY, 12);
     // Círculo principal
     this.tipoIconBg.fillStyle(tipoColor, 1);
-    this.tipoIconBg.fillCircle(iconX, iconY, 9);
+    this.tipoIconBg.fillCircle(iconX, iconY, 10);
     // Borde brillante
-    this.tipoIconBg.lineStyle(1, CYBER_THEME.colors.white, 0.6);
-    this.tipoIconBg.strokeCircle(iconX, iconY, 9);
+    this.tipoIconBg.lineStyle(1.5, CYBER_THEME.colors.white, 0.7);
+    this.tipoIconBg.strokeCircle(iconX, iconY, 10);
     this.add(this.tipoIconBg);
 
-    // Icono de texto
-    this.tipoIconText = this.scene.add
-      .text(iconX, iconY, tipoConfig.icono, {
-        fontFamily: 'Orbitron',
-        fontSize: '10px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-    this.add(this.tipoIconText);
+    // Icono vectorial del tipo
+    this.tipoIconGraphics = this.scene.add.graphics();
+    drawTypeIcon(this.tipoIconGraphics, tipo, iconX, iconY, {
+      size: 13,
+      filled: true,
+      strokeWidth: 1,
+    });
+    this.add(this.tipoIconGraphics);
 
     // Nombre del Kodamon (ajustado para dejar espacio al icono)
     const nombreX = flipped ? width - 32 : 32;

@@ -11,6 +11,8 @@ import { FONDOS_DISPONIBLES } from './BootScene';
 import { CYBER_THEME, drawCyberPanel, drawCyberGrid } from '@ui/theme';
 import { AudioManager } from '@systems/AudioManager';
 import { AudioControls } from '@ui/AudioControls';
+import { drawTypeIcon } from '@ui/TypeIcons';
+import { GridRunners } from '@ui/GridRunners';
 
 interface MenuSceneData {
   mode?: 'normal' | 'player2Select';
@@ -41,6 +43,7 @@ export class MenuScene extends Phaser.Scene {
 
   // Grid animado
   private gridGraphics!: Phaser.GameObjects.Graphics;
+  private gridRunners!: GridRunners;
 
   // Audio
   private audio!: AudioManager;
@@ -136,6 +139,16 @@ export class MenuScene extends Phaser.Scene {
       ease: 'Sine.easeInOut',
     });
 
+    // Partículas estilo Tron que viajan por el grid (debajo de UI)
+    this.gridRunners = new GridRunners(this, width, height, {
+      gridSize: 30,
+      particleCount: 2,
+      minSpeed: 40,
+      maxSpeed: 70,
+      trailLength: 12,
+      blurLayers: 6,
+    });
+
     // Líneas decorativas superiores
     const deco = this.add.graphics();
     deco.fillStyle(CYBER_THEME.colors.cyan, 0.3);
@@ -198,9 +211,12 @@ export class MenuScene extends Phaser.Scene {
       'fantasma',
     ];
 
-    const totalWidth = tipos.length * 22;
-    const startX = this.LEFT_CENTER_X - totalWidth / 2 + 11;
-    const filterY = this.PADDING_TOP_LEFT + 55;
+    // Tamaño aumentado: 26px de ancho por botón (antes 22px)
+    const buttonSize = 26;
+    const totalWidth = tipos.length * buttonSize;
+    const startX = this.LEFT_CENTER_X - totalWidth / 2 + buttonSize / 2;
+    // Aumentar separación del título (era +55, ahora +70)
+    const filterY = this.PADDING_TOP_LEFT + 70;
 
     // Etiqueta FILTER centrada
     this.add
@@ -212,13 +228,13 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setAlpha(0.7);
 
-    const buttonsY = filterY + 14;
+    const buttonsY = filterY + 16;
     tipos.forEach((tipo, index) => {
-      const x = startX + index * 22;
+      const x = startX + index * buttonSize;
       const container = this.add.container(x, buttonsY);
       const isSelected = tipo === this.filtroActual;
 
-      // Fondo del botón
+      // Fondo del botón - tamaño aumentado (24x20 vs 18x14)
       const bg = this.add.graphics();
       let color: number = CYBER_THEME.colors.panel;
 
@@ -227,30 +243,31 @@ export class MenuScene extends Phaser.Scene {
         color = tipoColor ? tipoColor.color : CYBER_THEME.colors.panel;
       }
 
+      const btnW = 24;
+      const btnH = 20;
+
       if (isSelected) {
         bg.fillStyle(CYBER_THEME.colors.cyan, 1);
-        bg.lineStyle(1, CYBER_THEME.colors.white, 0.8);
+        bg.lineStyle(1.5, CYBER_THEME.colors.white, 0.9);
       } else {
         bg.fillStyle(color, 0.6);
         bg.lineStyle(1, CYBER_THEME.colors.cyan, 0.3);
       }
-      bg.fillRoundedRect(-9, -7, 18, 14, 2);
-      bg.strokeRoundedRect(-9, -7, 18, 14, 2);
+      bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 3);
+      bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 3);
       container.add(bg);
 
-      // Icono
-      const icono = tipo === 'todos' ? '✱' : getTipoConfig(tipo).icono;
-      const text = this.add
-        .text(0, 0, icono, {
-          fontFamily: 'Orbitron',
-          fontSize: '9px',
-          color: isSelected ? CYBER_THEME.colors.darkHex : CYBER_THEME.colors.whiteHex,
-        })
-        .setOrigin(0.5);
-      container.add(text);
+      // Icono gráfico vectorial (tamaño 14px, antes 9px texto)
+      const iconGraphics = this.add.graphics();
+      drawTypeIcon(iconGraphics, tipo, 0, 0, {
+        size: 14,
+        filled: true,
+        strokeWidth: isSelected ? 1 : 1.5,
+      });
+      container.add(iconGraphics);
 
       // Interactividad
-      container.setSize(18, 14);
+      container.setSize(btnW, btnH);
       container.setInteractive({ useHandCursor: true });
       container.on('pointerdown', () => {
         this.audio.playUI('click');
@@ -261,9 +278,9 @@ export class MenuScene extends Phaser.Scene {
         if (tipo !== this.filtroActual) {
           bg.clear();
           bg.fillStyle(CYBER_THEME.colors.cyan, 0.3);
-          bg.lineStyle(1, CYBER_THEME.colors.cyan, 0.8);
-          bg.fillRoundedRect(-9, -7, 18, 14, 2);
-          bg.strokeRoundedRect(-9, -7, 18, 14, 2);
+          bg.lineStyle(1.5, CYBER_THEME.colors.cyan, 0.8);
+          bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 3);
+          bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 3);
         }
       });
       container.on('pointerout', () => {
@@ -271,8 +288,8 @@ export class MenuScene extends Phaser.Scene {
           bg.clear();
           bg.fillStyle(color, 0.6);
           bg.lineStyle(1, CYBER_THEME.colors.cyan, 0.3);
-          bg.fillRoundedRect(-9, -7, 18, 14, 2);
-          bg.strokeRoundedRect(-9, -7, 18, 14, 2);
+          bg.fillRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 3);
+          bg.strokeRoundedRect(-btnW / 2, -btnH / 2, btnW, btnH, 3);
         }
       });
 
@@ -322,8 +339,8 @@ export class MenuScene extends Phaser.Scene {
 
     const gridWidth = columns * spacingX - (spacingX - cardW);
     const startX = this.LEFT_CENTER_X - gridWidth / 2 + cardW / 2;
-    // Grid center of first row: filter buttons end (~124) + gap + half card height
-    const startY = this.PADDING_TOP_LEFT + 120;
+    // Grid: aumentar separación del filter (era +120, ahora +145)
+    const startY = this.PADDING_TOP_LEFT + 145;
 
     this.kodamonsFiltrados.forEach((kodamon, index) => {
       if (index >= columns * rows) return; // Limitar a 10
@@ -374,22 +391,22 @@ export class MenuScene extends Phaser.Scene {
 
     container.add(bg);
 
-    // Icono del tipo (esquina superior derecha) - estilo Cyber
+    // Icono del tipo (esquina superior derecha) - estilo Cyber con gráficos vectoriales
     const iconBg = this.add.graphics();
     iconBg.fillStyle(tipoColor, 0.9);
-    iconBg.fillCircle(w / 2 - 10, -h / 2 + 10, 8);
-    iconBg.lineStyle(1, 0xffffff, 0.4);
-    iconBg.strokeCircle(w / 2 - 10, -h / 2 + 10, 8);
+    iconBg.fillCircle(w / 2 - 10, -h / 2 + 10, 9);
+    iconBg.lineStyle(1, 0xffffff, 0.5);
+    iconBg.strokeCircle(w / 2 - 10, -h / 2 + 10, 9);
     container.add(iconBg);
 
-    const tipoIconText = this.add
-      .text(w / 2 - 10, -h / 2 + 10, tipoConfig.icono, {
-        fontFamily: 'Orbitron',
-        fontSize: '9px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-    container.add(tipoIconText);
+    // Icono vectorial del tipo
+    const tipoIconGraphics = this.add.graphics();
+    drawTypeIcon(tipoIconGraphics, kodamon.tipo, w / 2 - 10, -h / 2 + 10, {
+      size: 11,
+      filled: true,
+      strokeWidth: 1,
+    });
+    container.add(tipoIconGraphics);
 
     // Sprite
     const sprite = this.add.image(0, -2, `kodamon-${kodamon.id}`);
@@ -705,9 +722,9 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private crearInstrucciones(): void {
-    // Grid bottom is at PADDING_TOP_LEFT + 120 + 70 + 30 = 275
+    // Grid bottom is at PADDING_TOP_LEFT + 145 + 70 + 30 = 315
     // Instructions positioned below with gap for balanced bottom padding
-    const instructionsY = this.PADDING_TOP_LEFT + 250;
+    const instructionsY = this.PADDING_TOP_LEFT + 275;
 
     this.add
       .text(this.LEFT_CENTER_X, instructionsY, 'ARROWS: Move | SPACE: Select', {
@@ -856,6 +873,11 @@ export class MenuScene extends Phaser.Scene {
     // Limpiar audio
     if (this.audio) {
       this.audio.destroy();
+    }
+
+    // Limpiar grid runners
+    if (this.gridRunners) {
+      this.gridRunners.destroy();
     }
 
     // Limpiar arrays de referencias

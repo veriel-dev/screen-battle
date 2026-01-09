@@ -8,17 +8,28 @@ import battleBg2 from '@assets/sprites/backgrounds/battle-bg-2.png';
 import battleBg3 from '@assets/sprites/backgrounds/battle-bg-3.png';
 import battleBg4 from '@assets/sprites/backgrounds/battle-bg-4.png';
 
-// Importar assets - Sprites de Kodamon
-import pyrexSprite from '@assets/sprites/kodamons/pyrex.png';
-import aquonSprite from '@assets/sprites/kodamons/aquon.png';
-import florixSprite from '@assets/sprites/kodamons/florix.png';
-import voltikSprite from '@assets/sprites/kodamons/voltik.png';
-import terronSprite from '@assets/sprites/kodamons/terron.png';
-import glaceonSprite from '@assets/sprites/kodamons/glaceon.png';
-import aerixSprite from '@assets/sprites/kodamons/aerix.png';
-import petrosSprite from '@assets/sprites/kodamons/petros.png';
-import normexSprite from '@assets/sprites/kodamons/normex.png';
-import spekterSprite from '@assets/sprites/kodamons/spekter.png';
+// Importar assets - Sprites de Kodamon (50+ Monsters Pack CC0 + Ansimuz CC0)
+import pyrexSprite from '@assets/sprites/kodamons-cyber/pyrex.png';
+import aquonSprite from '@assets/sprites/kodamons-cyber/aquon.png';
+import florixSprite from '@assets/sprites/kodamons-cyber/florix.png';
+import voltikSprite from '@assets/sprites/kodamons-cyber/voltik.png';
+import terronSprite from '@assets/sprites/kodamons-cyber/terron.png';
+import glaceonSprite from '@assets/sprites/kodamons-cyber/glaceon.png';
+import aerixSprite from '@assets/sprites/kodamons-cyber/aerix.png';
+import petrosSprite from '@assets/sprites/kodamons-cyber/petros.png';
+import normexSprite from '@assets/sprites/kodamons-cyber/normex.png';
+import spekterSprite from '@assets/sprites/kodamons-cyber/spekter.png';
+// 10 nuevos Kodamon
+import blazorSprite from '@assets/sprites/kodamons-cyber/blazor.png';
+import drakonSprite from '@assets/sprites/kodamons-cyber/drakon.png';
+import toxinSprite from '@assets/sprites/kodamons-cyber/toxin.png';
+import zephyrSprite from '@assets/sprites/kodamons-cyber/zephyr.png';
+import verdexSprite from '@assets/sprites/kodamons-cyber/verdex.png';
+import fuzzleSprite from '@assets/sprites/kodamons-cyber/fuzzle.png';
+import mechonSprite from '@assets/sprites/kodamons-cyber/mechon.png';
+import krakosSprite from '@assets/sprites/kodamons-cyber/krakos.png';
+import sparkySprite from '@assets/sprites/kodamons-cyber/sparky.png';
+import thornixSprite from '@assets/sprites/kodamons-cyber/thornix.png';
 
 // Mapa de fondos de batalla
 const BATTLE_BACKGROUNDS: Record<string, string> = {
@@ -40,6 +51,17 @@ const KODAMON_SPRITES: Record<string, string> = {
   petros: petrosSprite,
   normex: normexSprite,
   spekter: spekterSprite,
+  // 10 nuevos
+  blazor: blazorSprite,
+  drakon: drakonSprite,
+  toxin: toxinSprite,
+  zephyr: zephyrSprite,
+  verdex: verdexSprite,
+  fuzzle: fuzzleSprite,
+  mechon: mechonSprite,
+  krakos: krakosSprite,
+  sparky: sparkySprite,
+  thornix: thornixSprite,
 };
 
 export class BootScene extends Phaser.Scene {
