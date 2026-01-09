@@ -16,10 +16,26 @@ export default defineConfig({
     },
   },
   build: {
+    // Phaser es ~1.2MB minificado, no se puede reducir más
+    chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
-        manualChunks: {
-          phaser: ['phaser'],
+        manualChunks: (id) => {
+          if (id.includes('node_modules/phaser')) {
+            return 'phaser';
+          }
+          if (id.includes('/scenes/')) {
+            return 'scenes';
+          }
+          if (id.includes('/ui/')) {
+            return 'ui';
+          }
+          if (id.includes('/systems/')) {
+            return 'systems';
+          }
+          if (id.includes('/data/')) {
+            return 'data';
+          }
         },
       },
     },

@@ -9,7 +9,9 @@
 
 **Juego de batallas por turnos estilo Pokemon/Digimon con estética Cyberpunk**
 
-[Demo](#demo) • [Instalación](#instalación) • [Características](#características) • [Arquitectura](#arquitectura) • [Tecnologías](#tecnologías)
+### [Jugar Ahora](https://kodamon.veriel.dev/)
+
+[Instalación](#instalación) • [Características](#características) • [Arquitectura](#arquitectura) • [Tecnologías](#tecnologías)
 
 </div>
 
@@ -299,7 +301,7 @@ test: agregar tests
 - [x] **Fase 4**: Velocidad, estados alterados, críticos
 - [x] **Fase 5**: Sistema de audio
 - [x] **Fase 6**: Modos de juego y persistencia
-- [ ] **Fase 7**: Optimización y distribución
+- [x] **Fase 7**: Optimización y distribución (Cloudflare Pages)
 - [ ] **Futuro**: Más Kodamon, evoluciones, online multiplayer
 
 ---
@@ -314,6 +316,7 @@ Este proyecto está bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detal
 
 **Desarrollado con Phaser 3 + TypeScript**
 
-[![GitHub](https://img.shields.io/badge/GitHub-Repositorio-181717?style=flat-square&logo=github)](https://github.com/tu-usuario/kodamon)
+[![Demo](https://img.shields.io/badge/Demo-Jugar%20Ahora-00d4ff?style=flat-square)](https://kodamon.veriel.dev/)
+[![GitHub](https://img.shields.io/badge/GitHub-Repositorio-181717?style=flat-square&logo=github)](https://github.com/veriel-dev/screen-battle)
 
 </div>
