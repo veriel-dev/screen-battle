@@ -387,7 +387,7 @@ export class AudioManager {
    * Llamar desde BootScene.preload()
    */
   static preloadAudio(scene: Phaser.Scene): void {
-    const basePath = 'src/assets/audio';
+    const basePath = '/audio';
 
     // Música
     scene.load.audio('music-menu', `${basePath}/music/menu.ogg`);

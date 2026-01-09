@@ -3,10 +3,74 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Kodamon - Digital Battles</title>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&family=Press+Start+2P&display=swap');
 
+    <!-- SEO Basic -->
+    <title>Kodamon - Digital Battles | Juego de Batallas por Turnos</title>
+    <meta name="description" content="Kodamon es un juego de batallas por turnos estilo Pokemon con 10 tipos elementales, sistema de efectividad, modos Torneo y Supervivencia. Desarrollado con Phaser 3 y TypeScript." />
+    <meta name="keywords" content="kodamon, pokemon, juego, batallas, turnos, phaser, typescript, web game, rpg, estrategia" />
+    <meta name="author" content="veriel-dev" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="Spanish" />
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://kodamon.veriel.dev/" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://kodamon.veriel.dev/" />
+    <meta property="og:title" content="Kodamon - Digital Battles" />
+    <meta property="og:description" content="Juego de batallas por turnos con 10 tipos elementales, sistema de efectividad y modos Torneo/Supervivencia. Desarrollado con Phaser 3." />
+    <meta property="og:image" content="https://kodamon.veriel.dev/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="es_ES" />
+    <meta property="og:site_name" content="Kodamon" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://kodamon.veriel.dev/" />
+    <meta name="twitter:title" content="Kodamon - Digital Battles" />
+    <meta name="twitter:description" content="Juego de batallas por turnos con 10 tipos elementales y sistema de efectividad." />
+    <meta name="twitter:image" content="https://kodamon.veriel.dev/og-image.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#0a0a15" />
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&family=Press+Start+2P&display=swap" rel="stylesheet" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "Kodamon - Digital Battles",
+      "description": "Juego de batallas por turnos estilo Pokemon con 10 tipos elementales, sistema de efectividad, modos Torneo y Supervivencia.",
+      "genre": ["Turn-based RPG", "Strategy"],
+      "gamePlatform": "Web Browser",
+      "applicationCategory": "Game",
+      "operatingSystem": "Any",
+      "author": {
+        "@type": "Person",
+        "name": "veriel-dev"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "EUR"
+      }
+    }
+    </script>
+
+    <style>
       * {
         margin: 0;
         padding: 0;
@@ -31,10 +95,25 @@
       canvas {
         display: block;
       }
+
+      /* Loading fallback */
+      .loading-fallback {
+        color: #00d4ff;
+        font-family: 'Orbitron', monospace;
+        text-align: center;
+        padding: 2rem;
+      }
     </style>
   </head>
   <body>
-    <div id="game-container"></div>
+    <div id="game-container">
+      <noscript>
+        <div class="loading-fallback">
+          <h1>Kodamon</h1>
+          <p>Este juego requiere JavaScript para funcionar.</p>
+        </div>
+      </noscript>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
