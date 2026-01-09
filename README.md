@@ -36,7 +36,8 @@
 ## Características
 
 ### Sistema de Combate
-- **10 tipos elementales** con tabla de efectividad completa (fuego, agua, planta, eléctrico, tierra, hielo, volador, roca, normal, fantasma)
+- **20 Kodamon** con 10 tipos elementales y tabla de efectividad completa
+- **Tipos**: fuego, agua, planta, eléctrico, tierra, hielo, volador, roca, normal, fantasma
 - **Sistema de velocidad** que determina orden de turnos
 - **Golpes críticos** con probabilidad basada en estadísticas
 - **Estados alterados**: quemado, paralizado, envenenado, congelado, dormido
@@ -111,20 +112,20 @@
 
 ### Requisitos
 - Node.js 18+
-- npm 9+
+- pnpm 8+
 
 ### Pasos
 
 ```bash
 # Clonar repositorio
-git clone https://github.com/tu-usuario/kodamon.git
-cd kodamon
+git clone https://github.com/veriel-dev/screen-battle.git
+cd screen-battle
 
 # Instalar dependencias
-npm install
+pnpm install
 
 # Iniciar servidor de desarrollo
-npm run dev
+pnpm run dev
 ```
 
 El juego estará disponible en `http://localhost:5173`
@@ -133,11 +134,11 @@ El juego estará disponible en `http://localhost:5173`
 
 | Comando | Descripción |
 |---------|-------------|
-| `npm run dev` | Servidor de desarrollo con hot reload |
-| `npm run build` | Build de producción (TypeScript + Vite) |
-| `npm run preview` | Previsualizar build de producción |
-| `npm run lint` | Analizar código con ESLint |
-| `npm run lint:fix` | Corregir errores de lint automáticamente |
+| `pnpm dev` | Servidor de desarrollo con hot reload |
+| `pnpm build` | Build de producción (TypeScript + Vite) |
+| `pnpm preview` | Previsualizar build de producción |
+| `pnpm lint` | Analizar código con ESLint |
+| `pnpm lint:fix` | Corregir errores de lint automáticamente |
 
 ---
 
@@ -170,8 +171,8 @@ src/
 │   ├── TournamentManager.ts   # Lógica de torneo
 │   └── SurvivalManager.ts     # Lógica de supervivencia
 ├── data/
-│   ├── kodamons.ts            # 10 criaturas con stats
-│   ├── movimientos.ts         # 18+ movimientos de combate
+│   ├── kodamons.ts            # 20 criaturas con stats
+│   ├── movimientos.ts         # 20+ movimientos de combate
 │   ├── tipos.ts               # Configuración de tipos
 │   └── efectividad.ts         # Tabla de efectividad
 ├── types/
@@ -253,20 +254,30 @@ const daño = base * efectividad * stab * critico * random;
 | **Crítico** | 1.5x con probabilidad basada en velocidad |
 | **Random** | 0.85 - 1.0 |
 
-### Los 10 Kodamon
+### Los 20 Kodamon
 
-| Nombre | Tipo | HP | Especialidad |
-|--------|------|-----|--------------|
-| Pyrex | Fuego | 78 | Ataque especial |
-| Aquon | Agua | 84 | Defensa especial |
-| Florix | Planta | 80 | Equilibrado |
-| Voltik | Eléctrico | 60 | Velocidad (130) |
-| Terron | Tierra | 110 | Defensa física |
-| Glaceon | Hielo | 65 | Ataque especial |
-| Aerix | Volador | 83 | Velocidad |
-| Petros | Roca | 80 | Defensa física |
-| Normex | Normal | 105 | HP alto |
-| Spekter | Fantasma | 60 | Ataque especial |
+| Nombre | Tipo | HP | ATK | DEF | ATK-E | DEF-E | VEL |
+|--------|------|-----|-----|-----|-------|-------|-----|
+| Pyrex | Fuego | 78 | 84 | 78 | 109 | 85 | 100 |
+| Aquon | Agua | 84 | 70 | 80 | 100 | 110 | 70 |
+| Florix | Planta | 80 | 82 | 83 | 100 | 100 | 80 |
+| Voltik | Eléctrico | 60 | 55 | 50 | 95 | 75 | 130 |
+| Terron | Tierra | 110 | 100 | 130 | 55 | 65 | 45 |
+| Glaceon | Hielo | 65 | 60 | 60 | 130 | 95 | 110 |
+| Aerix | Volador | 83 | 80 | 75 | 95 | 85 | 115 |
+| Petros | Roca | 80 | 110 | 130 | 45 | 50 | 35 |
+| Normex | Normal | 105 | 75 | 85 | 65 | 85 | 70 |
+| Spekter | Fantasma | 60 | 50 | 60 | 130 | 100 | 110 |
+| Blazor | Fuego | 85 | 100 | 70 | 95 | 70 | 95 |
+| Drakon | Volador | 90 | 95 | 80 | 85 | 75 | 100 |
+| Toxin | Planta | 75 | 70 | 85 | 100 | 90 | 70 |
+| Zephyr | Volador | 70 | 75 | 65 | 90 | 80 | 110 |
+| Verdex | Planta | 95 | 85 | 90 | 75 | 85 | 60 |
+| Fuzzle | Normal | 80 | 70 | 75 | 85 | 90 | 85 |
+| Mechon | Eléctrico | 75 | 90 | 100 | 80 | 70 | 75 |
+| Krakos | Agua | 90 | 95 | 85 | 90 | 80 | 65 |
+| Sparky | Eléctrico | 65 | 80 | 60 | 95 | 70 | 105 |
+| Thornix | Roca | 85 | 95 | 105 | 50 | 75 | 55 |
 
 ---
 

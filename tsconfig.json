@@ -25,7 +25,6 @@
     "paths": {
       "@/*": ["./src/*"],
       "@scenes/*": ["./src/scenes/*"],
-      "@entities/*": ["./src/entities/*"],
       "@ui/*": ["./src/ui/*"],
       "@data/*": ["./src/data/*"],
       "@systems/*": ["./src/systems/*"],

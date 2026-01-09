@@ -6,7 +6,6 @@ export default defineConfig({
     alias: {
       '@': resolve(__dirname, './src'),
       '@scenes': resolve(__dirname, './src/scenes'),
-      '@entities': resolve(__dirname, './src/entities'),
       '@ui': resolve(__dirname, './src/ui'),
       '@data': resolve(__dirname, './src/data'),
       '@systems': resolve(__dirname, './src/systems'),
