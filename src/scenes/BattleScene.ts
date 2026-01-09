@@ -114,7 +114,7 @@ export class BattleScene extends Phaser.Scene {
     const playerData = getKodamon(data.playerKodamonId);
     if (!playerData) {
       console.error('Kodamon del jugador no encontrado:', data.playerKodamonId);
-      this.scene.start('MenuScene');
+      this.scene.start('MenuScene', { mode: 'normal' });
       return;
     }
 
@@ -122,7 +122,7 @@ export class BattleScene extends Phaser.Scene {
     const enemyData = getKodamon(data.enemyKodamonId);
     if (!enemyData) {
       console.error('Kodamon enemigo no encontrado:', data.enemyKodamonId);
-      this.scene.start('MenuScene');
+      this.scene.start('MenuScene', { mode: 'normal' });
       return;
     }
 
@@ -1493,7 +1493,8 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(400, () => {
       // Detener toda música antes de ir al menú
       this.sound.stopAll();
-      this.scene.start('MenuScene');
+      // Pasar mode: 'normal' explícitamente para resetear el estado
+      this.scene.start('MenuScene', { mode: 'normal' });
     });
   }
 
