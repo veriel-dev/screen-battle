@@ -12,3 +12,6 @@ export {
 } from './StatusEffects';
 export { AudioManager } from './AudioManager';
 export type { UISoundType, ImpactSoundType, AudioConfig } from './AudioManager';
+export { PersistenceManager, getPersistenceManager } from './PersistenceManager';
+export { TournamentManager } from './TournamentManager';
+export { SurvivalManager } from './SurvivalManager';

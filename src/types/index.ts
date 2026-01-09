@@ -113,3 +113,23 @@ export interface KodamonBatalla {
    */
   turnosEstado: number;
 }
+
+// ═══════════════════════════════════════════════════════════════
+// RE-EXPORTAR TIPOS DE MODOS DE JUEGO
+// ═══════════════════════════════════════════════════════════════
+
+export type {
+  GameMode,
+  GameStats,
+  BattleRecord,
+  KodamonStats,
+  KodamonStatsMap,
+  Achievement,
+  PersistenceData,
+  TournamentState,
+  SurvivalState,
+  MultiplayerState,
+  MenuToModeData,
+  ModeToBattleData,
+  BattleResultData,
+} from './modes';

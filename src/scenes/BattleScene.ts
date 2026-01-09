@@ -1,11 +1,19 @@
 import Phaser from 'phaser';
-import type { KodamonData, KodamonBatalla, Movimiento } from '@game-types/index';
+import type {
+  KodamonData,
+  KodamonBatalla,
+  Movimiento,
+  GameMode,
+  ModeToBattleData,
+  BattleResultData,
+} from '@game-types/index';
 import {
   getRandomKodamon,
   getMovimiento,
   getEfectividad,
   getTextoEfectividad,
   BATTLE_CONSTANTS,
+  getKodamon,
 } from '@data/index';
 import {
   BattleEffects,
@@ -14,9 +22,12 @@ import {
   calcularDañoPorEstado,
   verificarPuedeAtacar,
   AudioManager,
+  TournamentManager,
+  SurvivalManager,
+  getPersistenceManager,
 } from '@systems/index';
 import { HealthBar, MoveButton, DialogBox } from '@ui/index';
-import { CYBER_THEME, drawCyberGrid } from '@ui/theme';
+import { CYBER_THEME, drawCyberGrid, drawCyberPanel } from '@ui/theme';
 
 type EstadoBatalla =
   | 'INTRO'
@@ -31,7 +42,7 @@ export class BattleScene extends Phaser.Scene {
   private jugador!: KodamonBatalla;
   private enemigo!: KodamonBatalla;
   private _estado: EstadoBatalla = 'INTRO';
-  private fondoId: string = 'battle-bg-1';
+  private fondoId: string = 'arena_grass';
 
   /** Estado actual de la batalla */
   get estado(): EstadoBatalla {
@@ -64,24 +75,79 @@ export class BattleScene extends Phaser.Scene {
   // Cyber grid animation
   private gridGraphics!: Phaser.GameObjects.Graphics;
 
+  // Modo de juego
+  private gameMode: GameMode = 'libre';
+  private tournamentManager: TournamentManager | null = null;
+  private survivalManager: SurvivalManager | null = null;
+  private modeInfoPanel!: Phaser.GameObjects.Container;
+
   constructor() {
     super({ key: 'BattleScene' });
   }
 
-  init(data: { jugador: KodamonData; fondoId?: string }): void {
-    // Crear estado de batalla para el jugador
-    this.jugador = this.crearKodamonBatalla(data.jugador);
+  init(data: ModeToBattleData | { jugador: KodamonData; fondoId?: string }): void {
+    // Compatibilidad con formato anterior (jugador, fondoId)
+    if ('jugador' in data) {
+      this.gameMode = 'libre';
+      this.fondoId = data.fondoId || 'arena_grass';
+      this.tournamentManager = null;
+      this.survivalManager = null;
 
-    // Guardar el fondo seleccionado
-    this.fondoId = data.fondoId || 'battle-bg-1';
+      this.jugador = this.crearKodamonBatalla(data.jugador);
 
-    // Seleccionar enemigo aleatorio (diferente al jugador)
-    let enemigoData: KodamonData;
-    do {
-      enemigoData = getRandomKodamon();
-    } while (enemigoData.id === data.jugador.id);
+      // Seleccionar enemigo aleatorio (diferente al jugador)
+      let enemigoData: KodamonData;
+      do {
+        enemigoData = getRandomKodamon();
+      } while (enemigoData.id === data.jugador.id);
 
-    this.enemigo = this.crearKodamonBatalla(enemigoData);
+      this.enemigo = this.crearKodamonBatalla(enemigoData);
+      this._estado = 'INTRO';
+      return;
+    }
+
+    // Nuevo formato con ModeToBattleData
+    this.gameMode = data.mode;
+    this.fondoId = data.arenaId || 'arena_grass';
+
+    // Obtener datos del jugador
+    const playerData = getKodamon(data.playerKodamonId);
+    if (!playerData) {
+      console.error('Kodamon del jugador no encontrado:', data.playerKodamonId);
+      this.scene.start('MenuScene');
+      return;
+    }
+
+    // Obtener datos del enemigo
+    const enemyData = getKodamon(data.enemyKodamonId);
+    if (!enemyData) {
+      console.error('Kodamon enemigo no encontrado:', data.enemyKodamonId);
+      this.scene.start('MenuScene');
+      return;
+    }
+
+    // Crear Kodamon de batalla
+    this.jugador = this.crearKodamonBatalla(playerData);
+    this.enemigo = this.crearKodamonBatalla(enemyData);
+
+    // Configurar managers según el modo
+    if (data.mode === 'torneo' && data.tournamentState) {
+      this.tournamentManager = new TournamentManager(data.tournamentState);
+      // Restaurar HP del jugador si viene de una ronda anterior
+      if (data.tournamentState.currentRound > 1) {
+        this.jugador.hpActual = data.tournamentState.playerHP;
+      }
+    } else if (data.mode === 'supervivencia' && data.survivalState) {
+      this.survivalManager = new SurvivalManager(data.survivalState);
+      // Restaurar HP del jugador si viene de una oleada anterior
+      if (data.survivalState.currentWave > 1) {
+        this.jugador.hpActual = data.survivalState.playerHP;
+      }
+    } else {
+      this.tournamentManager = null;
+      this.survivalManager = null;
+    }
+
     this._estado = 'INTRO';
   }
 
@@ -101,6 +167,7 @@ export class BattleScene extends Phaser.Scene {
     this.dibujarFondo();
     this.crearSprites();
     this.crearUI();
+    this.crearModeInfoPanel();
     this.iniciarIntro();
   }
 
@@ -442,6 +509,54 @@ export class BattleScene extends Phaser.Scene {
     this.turnIndicator.setData('starLeft', starLeft);
     this.turnIndicator.setData('starRight', starRight);
     this.turnIndicator.setVisible(false);
+  }
+
+  /**
+   * Crea el panel de información del modo de juego
+   */
+  private crearModeInfoPanel(): void {
+    // No mostrar panel en modo libre o multijugador
+    if (this.gameMode === 'libre' || this.gameMode === 'multijugador') {
+      return;
+    }
+
+    this.modeInfoPanel = this.add.container(256, 55);
+
+    const panelGraphics = this.add.graphics();
+    const w = 120;
+    const h = 24;
+
+    // Fondo del panel
+    drawCyberPanel(panelGraphics, -w / 2, -h / 2, w, h, {
+      fillAlpha: 0.85,
+      cornerCut: 5,
+      accentSide: 'none',
+    });
+
+    this.modeInfoPanel.add(panelGraphics);
+
+    // Texto según el modo
+    let modeText = '';
+    if (this.gameMode === 'torneo' && this.tournamentManager) {
+      const progress = this.tournamentManager.getProgressInfo();
+      modeText = `TORNEO ${progress.currentRound}/${progress.totalRounds}`;
+    } else if (this.gameMode === 'supervivencia' && this.survivalManager) {
+      const progress = this.survivalManager.getProgressInfo();
+      modeText = `OLEADA ${progress.currentWave}`;
+    }
+
+    const texto = this.add
+      .text(0, 0, modeText, {
+        fontFamily: 'Orbitron',
+        fontSize: '9px',
+        color: CYBER_THEME.colors.cyanHex,
+      })
+      .setOrigin(0.5);
+
+    this.modeInfoPanel.add(texto);
+
+    // Guardar referencia al texto para actualizar
+    this.modeInfoPanel.setData('texto', texto);
   }
 
   private mostrarIndicadorTurno(nombreKodamon: string, esJugador: boolean): void {
@@ -1293,14 +1408,91 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private volverAlMenu(): void {
-    this.time.delayedCall(1000, () => {
-      // Fade-out de música
-      this.audio.stopMusic(400);
+    // Determinar el resultado
+    const result: 'victory' | 'defeat' = this._estado === 'VICTORIA' ? 'victory' : 'defeat';
 
-      this.cameras.main.fade(400, 10, 10, 26);
-      this.time.delayedCall(400, () => {
-        this.scene.start('MenuScene');
-      });
+    // Crear datos del resultado
+    const resultData: BattleResultData = {
+      mode: this.gameMode,
+      result,
+      playerKodamonId: this.jugador.datos.id,
+      enemyKodamonId: this.enemigo.datos.id,
+      playerRemainingHP: this.jugador.hpActual,
+      tournamentState: this.tournamentManager?.getState(),
+      survivalState: this.survivalManager?.getState(),
+    };
+
+    // Registrar batalla en persistencia para modo libre
+    if (this.gameMode === 'libre' || this.gameMode === 'multijugador') {
+      getPersistenceManager().recordBattle(
+        resultData.playerKodamonId,
+        resultData.enemyKodamonId,
+        result,
+        this.gameMode
+      );
+    }
+
+    this.time.delayedCall(1000, () => {
+      // Procesar según el modo
+      if (this.gameMode === 'torneo' && this.tournamentManager) {
+        const tournamentResult = this.tournamentManager.processResult(resultData);
+
+        if (tournamentResult.continueToNext && tournamentResult.nextBattleData) {
+          // Continuar al siguiente combate del torneo
+          this.mostrarDialogo(`¡Preparando siguiente ronda!`, () => {
+            this.audio.stopMusic(400);
+            this.cameras.main.fade(400, 10, 10, 26);
+            this.time.delayedCall(400, () => {
+              this.scene.start('BattleScene', tournamentResult.nextBattleData);
+            });
+          });
+          return;
+        } else if (tournamentResult.tournamentResult === 'victory') {
+          this.mostrarDialogo('¡GANASTE EL TORNEO!', () => {
+            this.irAMenuPrincipal();
+          });
+          return;
+        }
+        // Si perdió el torneo, ir al menú
+      } else if (this.gameMode === 'supervivencia' && this.survivalManager) {
+        const survivalResult = this.survivalManager.processResult(resultData);
+
+        if (survivalResult.continueToNext && survivalResult.nextBattleData) {
+          // Continuar a la siguiente oleada
+          const hpRecuperado = Math.floor(this.jugador.datos.estadisticas.hp * 0.5);
+          this.mostrarDialogo(`¡Oleada completada! +${hpRecuperado} HP`, () => {
+            this.audio.stopMusic(400);
+            this.cameras.main.fade(400, 10, 10, 26);
+            this.time.delayedCall(400, () => {
+              this.scene.start('BattleScene', survivalResult.nextBattleData);
+            });
+          });
+          return;
+        } else {
+          // Fin de supervivencia
+          const mensaje = survivalResult.isNewRecord
+            ? `¡NUEVO RECORD! Oleada ${survivalResult.finalWave}`
+            : `Llegaste a la oleada ${survivalResult.finalWave}`;
+          this.mostrarDialogo(mensaje, () => {
+            this.irAMenuPrincipal();
+          });
+          return;
+        }
+      }
+
+      // Modo libre o multijugador - ir al menú
+      this.irAMenuPrincipal();
+    });
+  }
+
+  /**
+   * Ir al menú principal con fade out
+   */
+  private irAMenuPrincipal(): void {
+    this.audio.stopMusic(400);
+    this.cameras.main.fade(400, 10, 10, 26);
+    this.time.delayedCall(400, () => {
+      this.scene.start('MenuScene');
     });
   }
 

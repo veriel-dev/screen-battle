@@ -158,23 +158,23 @@ Desarrollo de un juego de batallas por turnos estilo Pokémon utilizando **Vite*
 
 ---
 
-## Fase 6: Funcionalidades Adicionales
+## Fase 6: Funcionalidades Adicionales ✅
 
 ### 6.1 Persistencia
-- [ ] Guardar estadísticas de victorias/derrotas
-- [ ] Guardar configuración del usuario
-- [ ] Sistema de logros básico
+- [x] Guardar estadísticas de victorias/derrotas
+- [x] Guardar configuración del usuario
+- [x] Sistema de logros básico (11 logros)
 
 ### 6.2 Modos de Juego
-- [ ] Modo torneo (enfrentar varios enemigos seguidos)
-- [ ] Modo supervivencia (cuántos enemigos puedes vencer)
-- [ ] Selección aleatoria de ambos Kodamon
+- [x] Modo torneo (4 rondas, HP persistente)
+- [x] Modo supervivencia (oleadas infinitas, +50% HP entre rondas)
+- [x] ModeSelectScene para elegir modo
 
-### 6.3 Multijugador Local (Opcional)
-- [ ] Dos jugadores en la misma pantalla
-- [ ] Selección oculta de movimientos
+### 6.3 Multijugador Local
+- [x] Dos jugadores en la misma pantalla
+- [x] Selección de Kodamon para Player 2
 
-**Entregable:** Juego con características adicionales y rejugabilidad.
+**Entregable:** Juego con características adicionales y rejugabilidad. ✅
 
 ---
 

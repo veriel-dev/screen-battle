@@ -1,10 +1,22 @@
 import Phaser from 'phaser';
 import { getAllKodamons, getTipoConfig } from '@data/index';
-import type { KodamonData, TipoElemental } from '@game-types/index';
+import type {
+  KodamonData,
+  TipoElemental,
+  MenuToModeData,
+  ModeToBattleData,
+  MultiplayerState,
+} from '@game-types/index';
 import { FONDOS_DISPONIBLES } from './BootScene';
 import { CYBER_THEME, drawCyberPanel, drawCyberGrid } from '@ui/theme';
 import { AudioManager } from '@systems/AudioManager';
 import { AudioControls } from '@ui/AudioControls';
+
+interface MenuSceneData {
+  mode?: 'normal' | 'player2Select';
+  player1KodamonId?: string;
+  arenaId?: string;
+}
 
 export class MenuScene extends Phaser.Scene {
   private kodamons: KodamonData[] = [];
@@ -33,6 +45,11 @@ export class MenuScene extends Phaser.Scene {
   // Audio
   private audio!: AudioManager;
 
+  // Modo de selección (normal o jugador 2 para multijugador)
+  private menuMode: 'normal' | 'player2Select' = 'normal';
+  private player1KodamonId: string = '';
+  private player1ArenaId: string = '';
+
   // Layout constants
   private readonly LEFT_CENTER_X = 155;
   private readonly RIGHT_PANEL_X = 350;
@@ -46,6 +63,12 @@ export class MenuScene extends Phaser.Scene {
 
   constructor() {
     super({ key: 'MenuScene' });
+  }
+
+  init(data?: MenuSceneData): void {
+    this.menuMode = data?.mode ?? 'normal';
+    this.player1KodamonId = data?.player1KodamonId ?? '';
+    this.player1ArenaId = data?.arenaId ?? '';
   }
 
   create(): void {
@@ -129,22 +152,29 @@ export class MenuScene extends Phaser.Scene {
   private crearTitulo(): void {
     const baseY = this.PADDING_TOP_LEFT;
 
+    // Título diferente según el modo
+    const isPlayer2Select = this.menuMode === 'player2Select';
+    const titleText = isPlayer2Select ? 'PLAYER 2' : 'KODAMON';
+    const subtitleText = isPlayer2Select ? 'SELECT YOUR KODAMON' : 'DIGITAL BATTLES';
+    const titleColor = isPlayer2Select ? CYBER_THEME.colors.pinkHex : CYBER_THEME.colors.whiteHex;
+    const glowColor = isPlayer2Select ? CYBER_THEME.colors.pinkHex : CYBER_THEME.colors.cyanHex;
+
     // Logo principal - centrado en columna izquierda
     const logo = this.add
-      .text(this.LEFT_CENTER_X, baseY, 'KODAMON', {
+      .text(this.LEFT_CENTER_X, baseY, titleText, {
         fontFamily: 'Orbitron',
         fontSize: '26px',
         fontStyle: 'bold',
-        color: CYBER_THEME.colors.whiteHex,
+        color: titleColor,
       })
       .setOrigin(0.5);
 
     // Efecto glow
-    logo.setShadow(0, 0, CYBER_THEME.colors.cyanHex, 12, true, true);
+    logo.setShadow(0, 0, glowColor, 12, true, true);
 
     // Subtítulo
     this.add
-      .text(this.LEFT_CENTER_X, baseY + 23, 'DIGITAL BATTLES', {
+      .text(this.LEFT_CENTER_X, baseY + 23, subtitleText, {
         fontFamily: 'Rajdhani',
         fontSize: '10px',
         color: CYBER_THEME.colors.pinkHex,
@@ -767,9 +797,6 @@ export class MenuScene extends Phaser.Scene {
     const kodamonSeleccionado = this.kodamonsFiltrados[this.selectedIndex];
     const fondoId = FONDOS_DISPONIBLES[this.fondoSeleccionado].id;
 
-    // Fade-out de música
-    this.audio.stopMusic(400);
-
     // Efecto de transición cyber
     const flash = this.add.graphics();
     flash.fillStyle(CYBER_THEME.colors.cyan, 0);
@@ -783,10 +810,32 @@ export class MenuScene extends Phaser.Scene {
       onComplete: () => {
         this.cameras.main.fade(300, 10, 10, 26);
         this.time.delayedCall(300, () => {
-          this.scene.start('BattleScene', {
-            jugador: kodamonSeleccionado,
-            fondoId: fondoId,
-          });
+          if (this.menuMode === 'player2Select') {
+            // Modo multijugador: ir directamente a batalla
+            const multiplayerState: MultiplayerState = {
+              player1KodamonId: this.player1KodamonId,
+              player2KodamonId: kodamonSeleccionado.id,
+              arenaId: this.player1ArenaId,
+            };
+
+            const battleData: ModeToBattleData = {
+              mode: 'multijugador',
+              playerKodamonId: this.player1KodamonId,
+              enemyKodamonId: kodamonSeleccionado.id,
+              arenaId: this.player1ArenaId,
+              multiplayerState,
+            };
+
+            this.audio.stopMusic(0);
+            this.scene.start('BattleScene', battleData);
+          } else {
+            // Modo normal: ir a selección de modo
+            const modeData: MenuToModeData = {
+              playerKodamonId: kodamonSeleccionado.id,
+              arenaId: fondoId,
+            };
+            this.scene.start('ModeSelectScene', modeData);
+          }
         });
       },
     });
