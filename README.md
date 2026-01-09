@@ -281,30 +281,6 @@ const daño = base * efectividad * stab * critico * random;
 
 ---
 
-## Contribución
-
-Las contribuciones son bienvenidas. Por favor:
-
-1. Fork del repositorio
-2. Crear branch (`git checkout -b feature/nueva-caracteristica`)
-3. Commit cambios (`git commit -m 'feat: agregar nueva característica'`)
-4. Push al branch (`git push origin feature/nueva-caracteristica`)
-5. Abrir Pull Request
-
-### Convenciones de Commits
-
-```
-feat: nueva característica
-fix: corrección de bug
-docs: documentación
-style: formateo (sin cambios de código)
-refactor: refactorización
-perf: mejora de rendimiento
-test: agregar tests
-```
-
----
-
 ## Roadmap
 
 - [x] **Fase 1-3**: Setup, migración, assets externos
