@@ -23,7 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-docs/*
-CLAUDE.md 
 batalla-10-bichos.html
 .claude
+designs/
