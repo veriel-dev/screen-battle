@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { CYBER_THEME } from './theme';
 
 export interface DialogBoxConfig {
   x: number;
@@ -8,7 +9,7 @@ export interface DialogBoxConfig {
 }
 
 /**
- * Caja de diálogo con estilo visual mejorado
+ * Caja de diálogo estilo Digimon Cyber Sleuth
  */
 export class DialogBox extends Phaser.GameObjects.Container {
   private config: Required<DialogBoxConfig>;
@@ -22,8 +23,8 @@ export class DialogBox extends Phaser.GameObjects.Container {
     super(scene, config.x, config.y);
 
     this.config = {
-      width: 492,
-      height: 55,
+      width: 245,
+      height: 72,
       ...config,
     };
 
@@ -34,27 +35,27 @@ export class DialogBox extends Phaser.GameObjects.Container {
   private crearComponentes(): void {
     const { width, height } = this.config;
 
-    // Fondo del diálogo
+    // Fondo del diálogo estilo Cyber
     this.background = this.scene.add.graphics();
     this.dibujarFondo(width, height);
     this.add(this.background);
 
     // Texto del diálogo
-    this.dialogText = this.scene.add.text(15, 12, '', {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '9px',
-      color: '#e8e8e8',
-      wordWrap: { width: width - 40 },
-      lineSpacing: 6,
+    this.dialogText = this.scene.add.text(12, 10, '', {
+      fontFamily: 'Rajdhani',
+      fontSize: '12px',
+      color: CYBER_THEME.colors.whiteHex,
+      wordWrap: { width: width - 24 },
+      lineSpacing: 4,
     });
     this.add(this.dialogText);
 
-    // Indicador de continuar (triángulo animado)
+    // Indicador de continuar (diamante animado)
     this.indicator = this.scene.add
-      .text(width - 20, height - 18, '▼', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '8px',
-        color: '#88ccff',
+      .text(width - 16, height - 16, '◆', {
+        fontFamily: 'Rajdhani',
+        fontSize: '10px',
+        color: CYBER_THEME.colors.cyanHex,
       })
       .setOrigin(0.5);
     this.indicator.setVisible(false);
@@ -63,7 +64,7 @@ export class DialogBox extends Phaser.GameObjects.Container {
     // Animación del indicador
     this.scene.tweens.add({
       targets: this.indicator,
-      y: this.indicator.y + 3,
+      alpha: { from: 0.4, to: 1 },
       duration: 500,
       yoyo: true,
       repeat: -1,
@@ -75,38 +76,42 @@ export class DialogBox extends Phaser.GameObjects.Container {
     const g = this.background;
     g.clear();
 
-    // Sombra
-    g.fillStyle(0x000000, 0.4);
-    g.fillRoundedRect(3, 3, width, height, 8);
+    // Fondo principal con panel angular
+    const cut = 10;
+    g.fillStyle(CYBER_THEME.colors.panel, 0.95);
+    g.beginPath();
+    g.moveTo(cut, 0);
+    g.lineTo(width, 0);
+    g.lineTo(width, height - cut);
+    g.lineTo(width - cut, height);
+    g.lineTo(0, height);
+    g.lineTo(0, cut);
+    g.closePath();
+    g.fillPath();
 
-    // Fondo principal con gradiente simulado
-    g.fillStyle(0x16213e, 0.98);
-    g.fillRoundedRect(0, 0, width, height, 8);
+    // Borde superior
+    g.lineStyle(2, CYBER_THEME.colors.cyan, 0.4);
+    g.beginPath();
+    g.moveTo(cut, 0);
+    g.lineTo(width, 0);
+    g.strokePath();
 
-    // Borde exterior
-    g.lineStyle(2, 0x0f3460);
-    g.strokeRoundedRect(0, 0, width, height, 8);
+    // Borde izquierdo (línea de acento)
+    g.fillStyle(CYBER_THEME.colors.cyan, 0.8);
+    g.fillRect(0, cut, 2, height - cut);
 
-    // Borde interior brillante
-    g.lineStyle(1, 0x4a6fa5, 0.3);
-    g.strokeRoundedRect(4, 4, width - 8, height - 8, 6);
+    // Efecto de brillo interior
+    g.fillStyle(CYBER_THEME.colors.cyan, 0.03);
+    g.fillRect(4, 4, width - 8, height / 3);
 
-    // Decoración superior
-    g.fillStyle(0x4a6fa5, 0.2);
-    g.fillRoundedRect(8, 6, width - 16, 3, 1);
-
-    // Esquinas decorativas
-    this.dibujarEsquina(g, 6, 6);
-    this.dibujarEsquina(g, width - 10, 6);
-    this.dibujarEsquina(g, 6, height - 10);
-    this.dibujarEsquina(g, width - 10, height - 10);
-  }
-
-  private dibujarEsquina(g: Phaser.GameObjects.Graphics, x: number, y: number): void {
-    g.fillStyle(0x4a6fa5, 0.5);
-    g.fillRect(x, y, 4, 4);
-    g.fillStyle(0x88ccff, 0.3);
-    g.fillRect(x + 1, y + 1, 2, 2);
+    // Esquina decorativa superior izquierda
+    g.fillStyle(CYBER_THEME.colors.cyan, 0.3);
+    g.beginPath();
+    g.moveTo(0, cut);
+    g.lineTo(cut, 0);
+    g.lineTo(cut, cut);
+    g.closePath();
+    g.fillPath();
   }
 
   /**

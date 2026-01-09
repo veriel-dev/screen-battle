@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import type { TipoElemental } from '@game-types/index';
 import { getTipoConfig } from '@data/index';
+import { CYBER_THEME } from './theme';
 
 export interface MoveButtonConfig {
   x: number;
@@ -12,24 +13,22 @@ export interface MoveButtonConfig {
   poder: number;
   ppActual: number;
   ppMax: number;
-  efectividad?: number; // Multiplicador de efectividad vs enemigo actual
+  efectividad?: number;
   disabled?: boolean;
   onClick?: () => void;
 }
 
 /**
- * Botón de movimiento con estilo visual mejorado
+ * Botón de movimiento estilo Digimon Cyber Sleuth
  */
 export class MoveButton extends Phaser.GameObjects.Container {
   private config: Required<MoveButtonConfig>;
   private background!: Phaser.GameObjects.Graphics;
   private nombreText!: Phaser.GameObjects.Text;
   private ppText!: Phaser.GameObjects.Text;
-  private tipoIndicator!: Phaser.GameObjects.Graphics;
   private _isHovered: boolean = false;
   private isDisabled: boolean;
 
-  /** Indica si el botón está siendo hover */
   get isHovered(): boolean {
     return this._isHovered;
   }
@@ -38,8 +37,8 @@ export class MoveButton extends Phaser.GameObjects.Container {
     super(scene, config.x, config.y);
 
     this.config = {
-      width: 118,
-      height: 58,
+      width: 115,
+      height: 34,
       efectividad: 1,
       disabled: false,
       onClick: () => {},
@@ -54,7 +53,7 @@ export class MoveButton extends Phaser.GameObjects.Container {
   }
 
   private crearComponentes(): void {
-    const { width, height, nombre, tipo, poder, ppActual, ppMax, efectividad } = this.config;
+    const { width, height, nombre, tipo, ppActual, ppMax, efectividad } = this.config;
     const tipoConfig = getTipoConfig(tipo);
     const tipoColor = Phaser.Display.Color.HexStringToColor(tipoConfig.color).color;
 
@@ -63,76 +62,73 @@ export class MoveButton extends Phaser.GameObjects.Container {
     this.dibujarFondo(tipoColor, false);
     this.add(this.background);
 
-    // Indicador de tipo (barra lateral)
-    this.tipoIndicator = this.scene.add.graphics();
-    this.tipoIndicator.fillStyle(tipoColor, 1);
-    this.tipoIndicator.fillRoundedRect(0, 0, 6, height, { tl: 6, bl: 6, tr: 0, br: 0 });
-    this.add(this.tipoIndicator);
-
-    // Icono del tipo pequeño
-    const iconSize = 14;
-    const iconX = width - iconSize - 6;
-    const iconY = 6;
-    const iconBg = this.scene.add.graphics();
-    iconBg.fillStyle(tipoColor, 0.3);
-    iconBg.fillCircle(iconX + iconSize / 2, iconY + iconSize / 2, iconSize / 2);
-    iconBg.lineStyle(1, tipoColor, 0.8);
-    iconBg.strokeCircle(iconX + iconSize / 2, iconY + iconSize / 2, iconSize / 2);
-    this.add(iconBg);
+    // Línea de acento izquierda (color del tipo)
+    const accent = this.scene.add.graphics();
+    accent.fillStyle(this.isDisabled ? 0x444444 : tipoColor, 1);
+    accent.fillRect(0, 0, 2, height);
+    this.add(accent);
 
     // Nombre del movimiento
-    this.nombreText = this.scene.add.text(12, 6, nombre, {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '7px',
-      color: this.isDisabled ? '#666666' : '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 1,
-      wordWrap: { width: width - 30 },
+    this.nombreText = this.scene.add.text(8, 5, nombre, {
+      fontFamily: 'Rajdhani',
+      fontSize: '10px',
+      fontStyle: 'bold',
+      color: this.isDisabled ? '#666666' : CYBER_THEME.colors.whiteHex,
     });
     this.add(this.nombreText);
 
-    // Poder del movimiento
-    const poderText = this.scene.add.text(12, 20, `PWR ${poder}`, {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '6px',
-      color: this.isDisabled ? '#444444' : '#ffaa44',
-    });
-    this.add(poderText);
+    // Tipo badge (estilo Cyber)
+    const tipoBadge = this.scene.add.graphics();
+    tipoBadge.fillStyle(0x000000, 0.3);
+    const badgeWidth = 30;
+    const badgeX = width - badgeWidth - 4;
+    tipoBadge.fillRoundedRect(badgeX, 4, badgeWidth, 10, 2);
+    this.add(tipoBadge);
+
+    const tipoText = this.scene.add
+      .text(badgeX + badgeWidth / 2, 8, tipoConfig.nombre.substring(0, 4).toUpperCase(), {
+        fontFamily: 'Rajdhani',
+        fontSize: '7px',
+        fontStyle: 'bold',
+        color: this.isDisabled ? '#444444' : tipoConfig.color,
+      })
+      .setOrigin(0.5);
+    this.add(tipoText);
 
     // Indicador de efectividad
-    if (efectividad && efectividad !== 1) {
-      const efColor = efectividad >= 2 ? '#44ff88' : efectividad > 0 ? '#ff8844' : '#888888';
-      const efText = efectividad >= 2 ? '▲▲' : efectividad > 0 && efectividad < 1 ? '▼▼' : '✕';
-      const efLabel =
-        efectividad >= 2 ? 'S.EFEC' : efectividad > 0 && efectividad < 1 ? 'RESIST' : 'INMUNE';
+    if (efectividad && efectividad !== 1 && !this.isDisabled) {
+      let efColor: string;
+      let efText: string;
 
-      const efectividadIndicator = this.scene.add.text(width - 8, 22, `${efText} ${efLabel}`, {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '5px',
-        color: this.isDisabled ? '#444444' : efColor,
-      });
-      efectividadIndicator.setOrigin(1, 0);
-      this.add(efectividadIndicator);
+      if (efectividad >= 2) {
+        efColor = CYBER_THEME.colors.cyanHex;
+        efText = '▲';
+      } else if (efectividad > 0 && efectividad < 1) {
+        efColor = CYBER_THEME.colors.pinkHex;
+        efText = '▼';
+      } else {
+        efColor = '#666666';
+        efText = '✕';
+      }
+
+      const efIndicator = this.scene.add
+        .text(width - 6, height - 10, efText, {
+          fontFamily: 'Rajdhani',
+          fontSize: '10px',
+          color: efColor,
+        })
+        .setOrigin(1, 0.5);
+      this.add(efIndicator);
     }
 
     // PP restantes
     const ppColor = this.getPPColor(ppActual, ppMax);
-    this.ppText = this.scene.add.text(12, height - 14, `PP ${ppActual}/${ppMax}`, {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '6px',
+    this.ppText = this.scene.add.text(8, height - 12, `PP ${ppActual}/${ppMax}`, {
+      fontFamily: 'Orbitron',
+      fontSize: '7px',
       color: this.isDisabled ? '#444444' : ppColor,
     });
     this.add(this.ppText);
-
-    // Tipo texto
-    const tipoText = this.scene.add
-      .text(width - 8, height - 14, tipoConfig.nombre.substring(0, 4).toUpperCase(), {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '5px',
-        color: this.isDisabled ? '#444444' : tipoConfig.color,
-      })
-      .setOrigin(1, 0);
-    this.add(tipoText);
   }
 
   private dibujarFondo(tipoColor: number, hovered: boolean): void {
@@ -140,55 +136,41 @@ export class MoveButton extends Phaser.GameObjects.Container {
     const g = this.background;
     g.clear();
 
+    // Forma angular (clip-path simulado)
+    const cut = 5;
+
     if (this.isDisabled) {
-      // Estilo deshabilitado
-      g.fillStyle(0x2a2a2a, 0.9);
-      g.fillRoundedRect(0, 0, width, height, 6);
-      g.lineStyle(1, 0x3a3a3a);
-      g.strokeRoundedRect(0, 0, width, height, 6);
-      return;
+      g.fillStyle(CYBER_THEME.colors.panel, 0.6);
+      g.lineStyle(1, 0x333333, 0.5);
+    } else if (hovered) {
+      g.fillStyle(tipoColor, 0.2);
+      g.lineStyle(1, tipoColor, 0.8);
+    } else {
+      g.fillStyle(CYBER_THEME.colors.panel, 0.8);
+      g.lineStyle(1, CYBER_THEME.colors.cyan, 0.3);
     }
 
-    if (hovered) {
-      // Sombra más pronunciada al hover
-      g.fillStyle(0x000000, 0.4);
-      g.fillRoundedRect(2, 2, width, height, 6);
+    g.beginPath();
+    g.moveTo(cut, 0);
+    g.lineTo(width, 0);
+    g.lineTo(width - cut, height);
+    g.lineTo(0, height);
+    g.closePath();
+    g.fillPath();
+    g.strokePath();
 
-      // Fondo más brillante
-      g.fillStyle(tipoColor, 0.3);
-      g.fillRoundedRect(0, 0, width, height, 6);
-
-      // Borde brillante
-      g.lineStyle(2, tipoColor, 0.9);
-      g.strokeRoundedRect(0, 0, width, height, 6);
-
-      // Brillo interior
-      g.fillStyle(0xffffff, 0.1);
-      g.fillRoundedRect(4, 4, width - 8, height / 2 - 4, 4);
-    } else {
-      // Sombra
-      g.fillStyle(0x000000, 0.3);
-      g.fillRoundedRect(2, 2, width, height, 6);
-
-      // Fondo oscuro
-      g.fillStyle(0x1a1a2e, 0.95);
-      g.fillRoundedRect(0, 0, width, height, 6);
-
-      // Borde con color del tipo
-      g.lineStyle(1, tipoColor, 0.5);
-      g.strokeRoundedRect(0, 0, width, height, 6);
-
-      // Brillo sutil
-      g.fillStyle(0xffffff, 0.03);
-      g.fillRoundedRect(4, 4, width - 8, height / 2 - 4, 4);
+    // Efecto de glow al hover
+    if (hovered && !this.isDisabled) {
+      g.fillStyle(tipoColor, 0.1);
+      g.fillRect(2, 2, width - 4, height - 4);
     }
   }
 
   private getPPColor(ppActual: number, ppMax: number): string {
     const ratio = ppActual / ppMax;
-    if (ratio > 0.5) return '#88ff88';
-    if (ratio > 0.25) return '#ffcc44';
-    return '#ff6666';
+    if (ratio > 0.5) return CYBER_THEME.colors.cyanHex;
+    if (ratio > 0.25) return CYBER_THEME.hp.mediumGradient[0].toString(16).padStart(6, '0');
+    return CYBER_THEME.colors.pinkHex;
   }
 
   private configurarInteractividad(): void {
@@ -219,7 +201,6 @@ export class MoveButton extends Phaser.GameObjects.Container {
     this.on('pointerdown', () => {
       if (!this.isDisabled) {
         this.setScale(0.98);
-        // Efecto de click
         this.scene.tweens.add({
           targets: this,
           scale: 1,

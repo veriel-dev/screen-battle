@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import type { TipoElemental, EstadoAlterado } from '@game-types/index';
 import { getTipoConfig } from '@data/index';
 import { getEstadoConfig } from '@systems/index';
+import { CYBER_THEME, drawCyberPanel } from './theme';
 
 export interface HealthBarConfig {
   x: number;
@@ -13,23 +14,23 @@ export interface HealthBarConfig {
   hpMax: number;
   hpActual: number;
   showHpText?: boolean;
-  flipped?: boolean; // Para mostrar en lado opuesto
+  flipped?: boolean;
 }
 
 /**
- * Componente de barra de HP con estilo visual mejorado
+ * Barra de HP estilo Digimon Cyber Sleuth
  */
 export class HealthBar extends Phaser.GameObjects.Container {
   private config: Required<HealthBarConfig>;
   private background!: Phaser.GameObjects.Graphics;
+  private tipoIconBg!: Phaser.GameObjects.Graphics;
+  private tipoIconText!: Phaser.GameObjects.Text;
   private hpBarBg!: Phaser.GameObjects.Graphics;
   private hpBarFill!: Phaser.GameObjects.Graphics;
   private nombreText!: Phaser.GameObjects.Text;
   private hpText!: Phaser.GameObjects.Text;
-  private tipoIcon!: Phaser.GameObjects.Graphics;
   private hpActual: number;
   private hpMax: number;
-  // Indicador de estado alterado
   private statusBadge!: Phaser.GameObjects.Graphics;
   private statusText!: Phaser.GameObjects.Text;
 
@@ -37,8 +38,8 @@ export class HealthBar extends Phaser.GameObjects.Container {
     super(scene, config.x, config.y);
 
     this.config = {
-      width: 210,
-      height: 60,
+      width: 200,
+      height: 55,
       showHpText: true,
       flipped: false,
       ...config,
@@ -55,34 +56,67 @@ export class HealthBar extends Phaser.GameObjects.Container {
     const { width, height, nombre, tipo, flipped } = this.config;
     const tipoConfig = getTipoConfig(tipo);
     const tipoColor = Phaser.Display.Color.HexStringToColor(tipoConfig.color).color;
+    const accentColor = flipped ? CYBER_THEME.colors.pink : CYBER_THEME.colors.cyan;
 
-    // Fondo principal con gradiente simulado
+    // Panel de fondo estilo Cyber
     this.background = this.scene.add.graphics();
-    this.dibujarFondoPanel(width, height, tipoColor);
+    drawCyberPanel(this.background, 0, 0, width, height, {
+      fillAlpha: 0.9,
+      borderColor: accentColor,
+      borderAlpha: 0.4,
+      cornerCut: 8,
+      accentSide: flipped ? 'right' : 'left',
+      accentColor: accentColor,
+    });
     this.add(this.background);
 
-    // Icono del tipo
-    this.tipoIcon = this.scene.add.graphics();
-    this.dibujarIconoTipo(tipo, flipped ? width - 25 : 12, 12);
-    this.add(this.tipoIcon);
+    // Icono del tipo (círculo con símbolo Cyber)
+    const iconX = flipped ? width - 18 : 18;
+    const iconY = 14;
 
-    // Nombre del Kodamon
-    this.nombreText = this.scene.add.text(flipped ? width - 35 : 30, 10, nombre, {
-      fontFamily: '"Press Start 2P"',
-      fontSize: '9px',
-      color: '#ffffff',
-      stroke: '#000000',
-      strokeThickness: 2,
+    this.tipoIconBg = this.scene.add.graphics();
+    // Glow exterior
+    this.tipoIconBg.fillStyle(tipoColor, 0.3);
+    this.tipoIconBg.fillCircle(iconX, iconY, 11);
+    // Círculo principal
+    this.tipoIconBg.fillStyle(tipoColor, 1);
+    this.tipoIconBg.fillCircle(iconX, iconY, 9);
+    // Borde brillante
+    this.tipoIconBg.lineStyle(1, CYBER_THEME.colors.white, 0.6);
+    this.tipoIconBg.strokeCircle(iconX, iconY, 9);
+    this.add(this.tipoIconBg);
+
+    // Icono de texto
+    this.tipoIconText = this.scene.add
+      .text(iconX, iconY, tipoConfig.icono, {
+        fontFamily: 'Orbitron',
+        fontSize: '10px',
+        color: '#ffffff',
+      })
+      .setOrigin(0.5);
+    this.add(this.tipoIconText);
+
+    // Nombre del Kodamon (ajustado para dejar espacio al icono)
+    const nombreX = flipped ? width - 32 : 32;
+    this.nombreText = this.scene.add.text(nombreX, 8, nombre.toUpperCase(), {
+      fontFamily: 'Orbitron',
+      fontSize: '10px',
+      fontStyle: 'bold',
+      color: CYBER_THEME.colors.whiteHex,
     });
     if (flipped) this.nombreText.setOrigin(1, 0);
     this.add(this.nombreText);
 
-    // Barra HP fondo
+    // Fondo de la barra HP
     this.hpBarBg = this.scene.add.graphics();
-    this.hpBarBg.fillStyle(0x1a1a2e, 1);
-    this.hpBarBg.fillRoundedRect(10, 32, width - 20, 12, 3);
-    this.hpBarBg.lineStyle(1, 0x4a4a6a);
-    this.hpBarBg.strokeRoundedRect(10, 32, width - 20, 12, 3);
+    this.hpBarBg.fillStyle(CYBER_THEME.colors.white, 0.1);
+    this.hpBarBg.fillRect(10, 28, width - 20, 10);
+
+    // Patrón de segmentos sobre la barra
+    this.hpBarBg.fillStyle(CYBER_THEME.colors.dark, 0.3);
+    for (let i = 0; i < width - 20; i += 5) {
+      this.hpBarBg.fillRect(10 + i + 4, 28, 1, 10);
+    }
     this.add(this.hpBarBg);
 
     // Barra HP relleno
@@ -93,14 +127,15 @@ export class HealthBar extends Phaser.GameObjects.Container {
     // Texto HP
     if (this.config.showHpText) {
       this.hpText = this.scene.add
-        .text(width / 2, 50, '', {
-          fontFamily: '"Press Start 2P"',
-          fontSize: '7px',
-          color: '#aaffaa',
-          stroke: '#000000',
-          strokeThickness: 1,
+        .text(flipped ? 12 : width - 12, 42, '', {
+          fontFamily: 'Orbitron',
+          fontSize: '9px',
+          color:
+            accentColor === CYBER_THEME.colors.cyan
+              ? CYBER_THEME.colors.cyanHex
+              : CYBER_THEME.colors.pinkHex,
         })
-        .setOrigin(0.5, 0);
+        .setOrigin(flipped ? 0 : 1, 0);
       this.add(this.hpText);
       this.actualizarTextoHP();
     }
@@ -111,105 +146,15 @@ export class HealthBar extends Phaser.GameObjects.Container {
     this.add(this.statusBadge);
 
     this.statusText = this.scene.add
-      .text(flipped ? width - 40 : 40, 22, '', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '6px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 2,
+      .text(flipped ? width - 70 : 70, 8, '', {
+        fontFamily: 'Rajdhani',
+        fontSize: '8px',
+        fontStyle: 'bold',
+        color: CYBER_THEME.colors.whiteHex,
       })
-      .setOrigin(flipped ? 1 : 0, 0.5);
+      .setOrigin(flipped ? 1 : 0, 0);
     this.statusText.setVisible(false);
     this.add(this.statusText);
-  }
-
-  private dibujarFondoPanel(width: number, height: number, accentColor: number): void {
-    const g = this.background;
-    g.clear();
-
-    // Sombra
-    g.fillStyle(0x000000, 0.3);
-    g.fillRoundedRect(3, 3, width, height, 8);
-
-    // Fondo principal oscuro
-    g.fillStyle(0x16213e, 0.95);
-    g.fillRoundedRect(0, 0, width, height, 8);
-
-    // Borde exterior
-    g.lineStyle(2, 0x0f3460);
-    g.strokeRoundedRect(0, 0, width, height, 8);
-
-    // Línea de acento superior con color del tipo
-    g.fillStyle(accentColor, 0.8);
-    g.fillRoundedRect(4, 4, width - 8, 4, 2);
-
-    // Brillo interior
-    g.fillStyle(0xffffff, 0.05);
-    g.fillRoundedRect(4, 8, width - 8, 20, 4);
-  }
-
-  private dibujarIconoTipo(tipo: TipoElemental, x: number, y: number): void {
-    const g = this.tipoIcon;
-    const config = getTipoConfig(tipo);
-    const color = Phaser.Display.Color.HexStringToColor(config.color).color;
-
-    g.clear();
-
-    // Fondo circular
-    g.fillStyle(color, 1);
-    g.fillCircle(x, y, 8);
-
-    // Borde
-    g.lineStyle(1, 0xffffff, 0.5);
-    g.strokeCircle(x, y, 8);
-
-    // Símbolo interno según tipo (simplificado)
-    g.fillStyle(0xffffff, 0.9);
-    switch (tipo) {
-      case 'fuego':
-        // Llama
-        g.fillTriangle(x, y - 5, x - 4, y + 4, x + 4, y + 4);
-        break;
-      case 'agua':
-        // Gota
-        g.fillCircle(x, y + 2, 4);
-        g.fillTriangle(x, y - 5, x - 3, y, x + 3, y);
-        break;
-      case 'planta':
-        // Hoja
-        g.fillEllipse(x, y, 6, 10);
-        break;
-      case 'electrico':
-        // Rayo
-        g.fillTriangle(x - 3, y - 4, x + 2, y - 1, x - 1, y - 1);
-        g.fillTriangle(x - 2, y + 1, x + 3, y + 4, x + 1, y + 1);
-        break;
-      case 'hielo':
-        // Copo
-        g.fillRect(x - 1, y - 5, 2, 10);
-        g.fillRect(x - 5, y - 1, 10, 2);
-        break;
-      case 'tierra':
-        // Montaña
-        g.fillTriangle(x, y - 4, x - 5, y + 4, x + 5, y + 4);
-        break;
-      case 'volador':
-        // Ala
-        g.fillTriangle(x - 5, y + 3, x, y - 4, x + 5, y + 3);
-        break;
-      case 'roca':
-        // Roca
-        g.fillRect(x - 4, y - 2, 8, 6);
-        break;
-      case 'fantasma':
-        // Fantasma
-        g.fillCircle(x, y - 1, 4);
-        g.fillRect(x - 4, y, 8, 5);
-        break;
-      default:
-        // Normal - círculo
-        g.fillCircle(x, y, 4);
-    }
   }
 
   private actualizarBarraHP(): void {
@@ -218,34 +163,34 @@ export class HealthBar extends Phaser.GameObjects.Container {
     const porcentaje = Math.max(0, this.hpActual / this.hpMax);
     const fillWidth = barWidth * porcentaje;
 
-    // Color según HP
-    let color = 0x00ff88; // Verde
-    let colorOscuro = 0x00aa55;
-    if (porcentaje < 0.5) {
-      color = 0xffcc00; // Amarillo
-      colorOscuro = 0xaa8800;
-    }
-    if (porcentaje < 0.2) {
-      color = 0xff4444; // Rojo
-      colorOscuro = 0xaa2222;
+    // Colores según HP (estilo Cyber)
+    let colors: { main: number; glow: number };
+    if (porcentaje > 0.5) {
+      colors = { main: CYBER_THEME.hp.high, glow: CYBER_THEME.hp.highGradient[0] };
+    } else if (porcentaje > 0.2) {
+      colors = { main: CYBER_THEME.hp.medium, glow: CYBER_THEME.hp.mediumGradient[0] };
+    } else {
+      colors = { main: CYBER_THEME.hp.low, glow: CYBER_THEME.hp.lowGradient[0] };
     }
 
     this.hpBarFill.clear();
 
     if (fillWidth > 0) {
-      // Barra principal
-      this.hpBarFill.fillStyle(colorOscuro, 1);
-      this.hpBarFill.fillRoundedRect(12, 34, fillWidth, 8, 2);
+      // Barra principal con gradiente simulado
+      this.hpBarFill.fillStyle(colors.main, 1);
+      this.hpBarFill.fillRect(12, 30, fillWidth, 6);
 
       // Brillo superior
-      this.hpBarFill.fillStyle(color, 1);
-      this.hpBarFill.fillRoundedRect(12, 34, fillWidth, 4, 2);
+      this.hpBarFill.fillStyle(colors.glow, 0.5);
+      this.hpBarFill.fillRect(12, 30, fillWidth, 2);
     }
   }
 
   private actualizarTextoHP(): void {
     if (this.hpText) {
-      this.hpText.setText(`${Math.max(0, this.hpActual)} / ${this.hpMax}`);
+      const hpStr = Math.max(0, this.hpActual).toString().padStart(3, '0');
+      const maxStr = this.hpMax.toString().padStart(3, '0');
+      this.hpText.setText(`${hpStr}/${maxStr}`);
     }
   }
 
@@ -257,7 +202,6 @@ export class HealthBar extends Phaser.GameObjects.Container {
     this.hpActual = Math.max(0, Math.min(nuevoHP, this.hpMax));
 
     if (animado && hpAnterior !== this.hpActual) {
-      // Animación de cambio de HP
       this.scene.tweens.addCounter({
         from: hpAnterior,
         to: this.hpActual,
@@ -284,11 +228,9 @@ export class HealthBar extends Phaser.GameObjects.Container {
 
   /**
    * Actualiza el indicador de estado alterado
-   * @param estado - El estado actual o null para ocultar
    */
   setEstado(estado: EstadoAlterado): void {
     if (estado === null) {
-      // Ocultar indicador
       this.statusBadge.setVisible(false);
       this.statusText.setVisible(false);
       return;
@@ -301,31 +243,31 @@ export class HealthBar extends Phaser.GameObjects.Container {
     const color = Phaser.Display.Color.HexStringToColor(config.color).color;
 
     // Posición del badge
-    const badgeX = flipped ? width - 70 : 35;
-    const badgeY = 22;
-    const badgeWidth = 30;
+    const badgeX = flipped ? width - 105 : 75;
+    const badgeY = 6;
+    const badgeWidth = 28;
     const badgeHeight = 12;
 
-    // Dibujar badge
+    // Dibujar badge estilo Cyber (angular)
     this.statusBadge.clear();
     this.statusBadge.fillStyle(color, 0.9);
-    this.statusBadge.fillRoundedRect(badgeX, badgeY - badgeHeight / 2, badgeWidth, badgeHeight, 3);
-    this.statusBadge.lineStyle(1, 0x000000, 0.5);
-    this.statusBadge.strokeRoundedRect(
-      badgeX,
-      badgeY - badgeHeight / 2,
-      badgeWidth,
-      badgeHeight,
-      3
-    );
+    const cut = 3;
+    this.statusBadge.beginPath();
+    this.statusBadge.moveTo(badgeX + cut, badgeY);
+    this.statusBadge.lineTo(badgeX + badgeWidth, badgeY);
+    this.statusBadge.lineTo(badgeX + badgeWidth - cut, badgeY + badgeHeight);
+    this.statusBadge.lineTo(badgeX, badgeY + badgeHeight);
+    this.statusBadge.closePath();
+    this.statusBadge.fillPath();
     this.statusBadge.setVisible(true);
 
-    // Actualizar texto (nombre corto del estado)
-    this.statusText.setText(config.nombre);
-    this.statusText.setX(flipped ? width - 55 : 50);
+    // Actualizar texto
+    this.statusText.setText(config.nombre.substring(0, 3).toUpperCase());
+    this.statusText.setX(flipped ? width - 81 : 79);
+    this.statusText.setY(7);
     this.statusText.setVisible(true);
 
-    // Animación de pulso para llamar la atención
+    // Animación de pulso
     this.scene.tweens.add({
       targets: [this.statusBadge, this.statusText],
       alpha: { from: 0.5, to: 1 },

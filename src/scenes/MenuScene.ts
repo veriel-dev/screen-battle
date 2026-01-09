@@ -2,18 +2,19 @@ import Phaser from 'phaser';
 import { getAllKodamons, getTipoConfig } from '@data/index';
 import type { KodamonData, TipoElemental } from '@game-types/index';
 import { FONDOS_DISPONIBLES } from './BootScene';
+import { CYBER_THEME, drawCyberPanel, drawCyberGrid } from '@ui/theme';
 
 export class MenuScene extends Phaser.Scene {
   private kodamons: KodamonData[] = [];
   private kodamonsFiltrados: KodamonData[] = [];
   private selectedIndex: number = 0;
-  private kodamonSprites: Phaser.GameObjects.Image[] = [];
-  private nombreTexts: Phaser.GameObjects.Text[] = [];
-  private selectorRect!: Phaser.GameObjects.Graphics;
-  private infoText!: Phaser.GameObjects.Text;
-  private statsText!: Phaser.GameObjects.Text;
-  private descText!: Phaser.GameObjects.Text;
+  private kodamonCards: Phaser.GameObjects.Container[] = [];
+  private selectorGlow!: Phaser.GameObjects.Graphics;
   private previewSprite!: Phaser.GameObjects.Image;
+  private previewName!: Phaser.GameObjects.Text;
+  private previewType!: Phaser.GameObjects.Text;
+  private statsTexts: Phaser.GameObjects.Text[] = [];
+  private statsValues: Phaser.GameObjects.Text[] = [];
 
   // Filtro por tipo
   private filtroActual: TipoElemental | 'todos' = 'todos';
@@ -24,12 +25,19 @@ export class MenuScene extends Phaser.Scene {
   private fondoPreview!: Phaser.GameObjects.Image;
   private fondoNombreText!: Phaser.GameObjects.Text;
 
-  // Modo comparación
-  private modoComparacion: boolean = false;
-  private kodamonComparar1: KodamonData | null = null;
-  private comparacionOverlay: Phaser.GameObjects.Container | null = null;
-  private btnCompararText!: Phaser.GameObjects.Text;
-  private btnCompararBg!: Phaser.GameObjects.Graphics;
+  // Grid animado
+  private gridGraphics!: Phaser.GameObjects.Graphics;
+
+  // Layout constants
+  private readonly LEFT_CENTER_X = 155;
+  private readonly RIGHT_PANEL_X = 350;
+
+  // Vertical layout - centrado con padding equilibrado (~57px top/bottom)
+  // Canvas height: 384px
+  // Left column: Title(70) -> Filter(125) -> Grid(190-290) -> Instructions(320)
+  // Right column: PanelData(38-183) -> PanelArena(193-278) -> Buttons(303-345)
+  private readonly PADDING_TOP_LEFT = 70;
+  private readonly PADDING_TOP_RIGHT = 38;
 
   constructor() {
     super({ key: 'MenuScene' });
@@ -46,44 +54,79 @@ export class MenuScene extends Phaser.Scene {
     this.crearTitulo();
     this.crearFiltrosTipo();
     this.crearGridKodamons();
-    this.crearSelector();
-    this.crearSelectorFondo();
-    this.crearBotonAleatorio();
-    this.crearBotonComparar();
-    this.crearPanelInfo();
+    this.crearPanelPreview();
+    this.crearPanelArena();
+    this.crearBotonesAccion();
+    this.crearInstrucciones();
     this.configurarInput();
 
     this.actualizarSeleccion();
   }
 
   private dibujarFondo(): void {
-    const g = this.add.graphics();
-    const { height, width } = this.cameras.main;
+    const { width, height } = this.cameras.main;
 
+    // Gradiente de fondo
+    const bg = this.add.graphics();
     for (let i = 0; i < height; i++) {
       const t = i / height;
-      const r = Math.floor(32 + t * 16);
-      const gr = Math.floor(32 + t * 32);
-      const b = Math.floor(64 + t * 32);
-      g.fillStyle(Phaser.Display.Color.GetColor(r, gr, b));
-      g.fillRect(0, i, width, 1);
+      const r = Math.floor(10 + t * 16);
+      const g = Math.floor(10 + t * 16);
+      const b = Math.floor(26 + t * 32);
+      bg.fillStyle(Phaser.Display.Color.GetColor(r, g, b));
+      bg.fillRect(0, i, width, 1);
     }
+
+    // Grid cyberpunk
+    this.gridGraphics = this.add.graphics();
+    drawCyberGrid(this.gridGraphics, width, height, 30, 0.08);
+
+    // Animación del grid
+    this.tweens.add({
+      targets: this.gridGraphics,
+      alpha: { from: 0.5, to: 1 },
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Líneas decorativas superiores
+    const deco = this.add.graphics();
+    deco.fillStyle(CYBER_THEME.colors.cyan, 0.3);
+    deco.fillRect(0, 0, width, 2);
+    deco.fillStyle(CYBER_THEME.colors.pink, 0.2);
+    deco.fillRect(0, 3, width, 1);
+
+    // Línea separadora vertical
+    const separator = this.add.graphics();
+    separator.fillStyle(CYBER_THEME.colors.cyan, 0.15);
+    separator.fillRect(310, 10, 1, 364);
   }
 
   private crearTitulo(): void {
-    this.add
-      .text(256, 30, 'KODAMON', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '24px',
-        color: '#f0c030',
+    const baseY = this.PADDING_TOP_LEFT;
+
+    // Logo principal - centrado en columna izquierda
+    const logo = this.add
+      .text(this.LEFT_CENTER_X, baseY, 'KODAMON', {
+        fontFamily: 'Orbitron',
+        fontSize: '26px',
+        fontStyle: 'bold',
+        color: CYBER_THEME.colors.whiteHex,
       })
       .setOrigin(0.5);
 
+    // Efecto glow
+    logo.setShadow(0, 0, CYBER_THEME.colors.cyanHex, 12, true, true);
+
+    // Subtítulo
     this.add
-      .text(256, 55, 'Elige tu Kodamon', {
-        fontFamily: '"Press Start 2P"',
+      .text(this.LEFT_CENTER_X, baseY + 23, 'DIGITAL BATTLES', {
+        fontFamily: 'Rajdhani',
         fontSize: '10px',
-        color: '#ffffff',
+        color: CYBER_THEME.colors.pinkHex,
+        letterSpacing: 4,
       })
       .setOrigin(0.5);
   }
@@ -103,67 +146,77 @@ export class MenuScene extends Phaser.Scene {
       'fantasma',
     ];
 
-    const startX = 25;
-    const y = 72;
-    const spacing = 26;
+    const totalWidth = tipos.length * 22;
+    const startX = this.LEFT_CENTER_X - totalWidth / 2 + 11;
+    const filterY = this.PADDING_TOP_LEFT + 55;
 
+    // Etiqueta FILTER centrada
+    this.add
+      .text(this.LEFT_CENTER_X, filterY, 'FILTER', {
+        fontFamily: 'Orbitron',
+        fontSize: '7px',
+        color: CYBER_THEME.colors.cyanHex,
+      })
+      .setOrigin(0.5)
+      .setAlpha(0.7);
+
+    const buttonsY = filterY + 14;
     tipos.forEach((tipo, index) => {
-      const x = startX + index * spacing;
-      const container = this.add.container(x, y);
+      const x = startX + index * 22;
+      const container = this.add.container(x, buttonsY);
+      const isSelected = tipo === this.filtroActual;
 
       // Fondo del botón
       const bg = this.add.graphics();
-      const isSelected = tipo === this.filtroActual;
+      let color: number = CYBER_THEME.colors.panel;
 
-      if (tipo === 'todos') {
-        // Botón "todos" con fondo gris
-        bg.fillStyle(isSelected ? 0xf0c030 : 0x444444, 1);
-      } else {
-        // Botón de tipo con su color
-        const config = getTipoConfig(tipo);
-        const color = Phaser.Display.Color.HexStringToColor(config.color).color;
-        bg.fillStyle(isSelected ? 0xf0c030 : color, isSelected ? 1 : 0.7);
+      if (tipo !== 'todos') {
+        const tipoColor = CYBER_THEME.tipos[tipo as TipoElemental];
+        color = tipoColor ? tipoColor.color : CYBER_THEME.colors.panel;
       }
-      bg.fillRoundedRect(-10, -8, 20, 16, 4);
+
       if (isSelected) {
-        bg.lineStyle(2, 0xffffff, 1);
-        bg.strokeRoundedRect(-10, -8, 20, 16, 4);
+        bg.fillStyle(CYBER_THEME.colors.cyan, 1);
+        bg.lineStyle(1, CYBER_THEME.colors.white, 0.8);
+      } else {
+        bg.fillStyle(color, 0.6);
+        bg.lineStyle(1, CYBER_THEME.colors.cyan, 0.3);
       }
+      bg.fillRoundedRect(-9, -7, 18, 14, 2);
+      bg.strokeRoundedRect(-9, -7, 18, 14, 2);
       container.add(bg);
 
-      // Icono/texto
-      const icono = tipo === 'todos' ? '*' : getTipoConfig(tipo).icono;
+      // Icono
+      const icono = tipo === 'todos' ? '✱' : getTipoConfig(tipo).icono;
       const text = this.add
         .text(0, 0, icono, {
-          fontFamily: '"Press Start 2P"',
-          fontSize: '8px',
-          color: isSelected ? '#000000' : '#ffffff',
+          fontFamily: 'Orbitron',
+          fontSize: '9px',
+          color: isSelected ? CYBER_THEME.colors.darkHex : CYBER_THEME.colors.whiteHex,
         })
         .setOrigin(0.5);
       container.add(text);
 
       // Interactividad
-      container.setSize(20, 16);
+      container.setSize(18, 14);
       container.setInteractive({ useHandCursor: true });
       container.on('pointerdown', () => this.aplicarFiltro(tipo));
       container.on('pointerover', () => {
         if (tipo !== this.filtroActual) {
           bg.clear();
-          bg.fillStyle(0xffffff, 0.3);
-          bg.fillRoundedRect(-10, -8, 20, 16, 4);
+          bg.fillStyle(CYBER_THEME.colors.cyan, 0.3);
+          bg.lineStyle(1, CYBER_THEME.colors.cyan, 0.8);
+          bg.fillRoundedRect(-9, -7, 18, 14, 2);
+          bg.strokeRoundedRect(-9, -7, 18, 14, 2);
         }
       });
       container.on('pointerout', () => {
         if (tipo !== this.filtroActual) {
           bg.clear();
-          if (tipo === 'todos') {
-            bg.fillStyle(0x444444, 1);
-          } else {
-            const config = getTipoConfig(tipo);
-            const color = Phaser.Display.Color.HexStringToColor(config.color).color;
-            bg.fillStyle(color, 0.7);
-          }
-          bg.fillRoundedRect(-10, -8, 20, 16, 4);
+          bg.fillStyle(color, 0.6);
+          bg.lineStyle(1, CYBER_THEME.colors.cyan, 0.3);
+          bg.fillRoundedRect(-9, -7, 18, 14, 2);
+          bg.strokeRoundedRect(-9, -7, 18, 14, 2);
         }
       });
 
@@ -176,140 +229,270 @@ export class MenuScene extends Phaser.Scene {
 
     this.filtroActual = tipo;
 
-    // Filtrar Kodamons
     if (tipo === 'todos') {
       this.kodamonsFiltrados = [...this.kodamons];
     } else {
       this.kodamonsFiltrados = this.kodamons.filter((k) => k.tipo === tipo);
     }
 
-    // Recrear botones de filtro para actualizar visual
+    // Recrear filtros y grid
     this.filtroButtons.forEach((b) => b.destroy());
     this.filtroButtons = [];
     this.crearFiltrosTipo();
 
-    // Recrear grid
     this.selectedIndex = 0;
     this.crearGridKodamons();
 
-    // Actualizar selección si hay Kodamons
     if (this.kodamonsFiltrados.length > 0) {
       this.actualizarSeleccion();
-    } else {
-      // Si no hay Kodamons del tipo, limpiar vista previa
-      this.selectorRect.clear();
-      this.infoText.setText('Sin resultados');
-      this.statsText.setText('');
-      this.descText.setText('');
     }
   }
 
   private crearGridKodamons(): void {
-    // Limpiar sprites y textos anteriores
-    this.kodamonSprites.forEach((s) => s.destroy());
-    this.kodamonSprites = [];
-    this.nombreTexts.forEach((t) => t.destroy());
-    this.nombreTexts = [];
+    // Limpiar cards anteriores
+    this.kodamonCards.forEach((c) => c.destroy());
+    this.kodamonCards = [];
+    if (this.selectorGlow) this.selectorGlow.destroy();
 
-    // Grid compactado a la izquierda para dejar espacio al panel de vista previa
-    const startX = 45;
-    const startY = 100; // Ajustado para dejar espacio a los filtros
+    // Crear selector glow
+    this.selectorGlow = this.add.graphics();
+
+    // Layout: grid 5x2 centrado en columna izquierda
+    const cardW = 50;
     const spacingX = 55;
     const spacingY = 70;
     const columns = 5;
+    const rows = 2;
+
+    const gridWidth = columns * spacingX - (spacingX - cardW);
+    const startX = this.LEFT_CENTER_X - gridWidth / 2 + cardW / 2;
+    // Grid center of first row: filter buttons end (~124) + gap + half card height
+    const startY = this.PADDING_TOP_LEFT + 120;
 
     this.kodamonsFiltrados.forEach((kodamon, index) => {
+      if (index >= columns * rows) return; // Limitar a 10
+
       const col = index % columns;
       const row = Math.floor(index / columns);
       const x = startX + col * spacingX;
       const y = startY + row * spacingY;
 
-      // Sprite del Kodamon (reducido)
-      const sprite = this.add.image(x, y, `kodamon-${kodamon.id}`);
-      sprite.setScale(0.85);
-      sprite.setInteractive({ useHandCursor: true });
-      sprite.on('pointerdown', () => this.seleccionarKodamon(index));
-      sprite.on('pointerover', () => this.previsualizarKodamon(index));
-
-      this.kodamonSprites.push(sprite);
-
-      // Nombre debajo del sprite
-      const nombreText = this.add
-        .text(x, y + 35, kodamon.nombre, {
-          fontFamily: '"Press Start 2P"',
-          fontSize: '5px',
-          color: '#ffffff',
-        })
-        .setOrigin(0.5);
-      this.nombreTexts.push(nombreText);
+      const card = this.crearKodamonCard(kodamon, x, y, index);
+      this.kodamonCards.push(card);
     });
   }
 
-  private crearSelector(): void {
-    this.selectorRect = this.add.graphics();
-    this.selectorRect.lineStyle(3, 0xf0c030, 1);
-  }
+  private crearKodamonCard(
+    kodamon: KodamonData,
+    x: number,
+    y: number,
+    index: number
+  ): Phaser.GameObjects.Container {
+    const container = this.add.container(x, y);
+    const tipoConfig = getTipoConfig(kodamon.tipo);
+    const tipoColor = Phaser.Display.Color.HexStringToColor(tipoConfig.color).color;
 
-  private crearSelectorFondo(): void {
-    // Selector de arena movido debajo del grid de Kodamons
-    const panelX = 155; // Centrado bajo el grid
-    const panelY = 250; // Debajo del grid
+    // Fondo de la card con estilo angular
+    const bg = this.add.graphics();
+    bg.fillStyle(CYBER_THEME.colors.panel, 0.8);
+    bg.lineStyle(1, CYBER_THEME.colors.cyan, 0.3);
 
-    // Título
-    this.add
-      .text(panelX, panelY - 30, 'ARENA', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '8px',
-        color: '#f0c030',
-      })
-      .setOrigin(0.5);
+    // Forma angular
+    const w = 48;
+    const h = 60;
+    const cut = 6;
+    bg.beginPath();
+    bg.moveTo(-w / 2 + cut, -h / 2);
+    bg.lineTo(w / 2, -h / 2);
+    bg.lineTo(w / 2, h / 2 - cut);
+    bg.lineTo(w / 2 - cut, h / 2);
+    bg.lineTo(-w / 2, h / 2);
+    bg.lineTo(-w / 2, -h / 2 + cut);
+    bg.closePath();
+    bg.fillPath();
+    bg.strokePath();
 
-    // Fondo del panel (horizontal ahora)
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.7);
-    g.fillRoundedRect(panelX - 90, panelY - 18, 180, 55, 6);
-    g.lineStyle(2, 0xf0c030, 0.5);
-    g.strokeRoundedRect(panelX - 90, panelY - 18, 180, 55, 6);
+    // Línea de acento superior (color del tipo)
+    bg.fillStyle(tipoColor, 0.8);
+    bg.fillRect(-w / 2 + cut, -h / 2, w - cut, 2);
 
-    // Preview del fondo (miniatura más pequeña)
-    this.fondoPreview = this.add.image(panelX, panelY + 5, FONDOS_DISPONIBLES[0].id);
-    this.fondoPreview.setDisplaySize(60, 40);
+    container.add(bg);
 
-    // Nombre del fondo
-    this.fondoNombreText = this.add
-      .text(panelX, panelY + 32, FONDOS_DISPONIBLES[0].nombre, {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '6px',
+    // Icono del tipo (esquina superior derecha) - estilo Cyber
+    const iconBg = this.add.graphics();
+    iconBg.fillStyle(tipoColor, 0.9);
+    iconBg.fillCircle(w / 2 - 10, -h / 2 + 10, 8);
+    iconBg.lineStyle(1, 0xffffff, 0.4);
+    iconBg.strokeCircle(w / 2 - 10, -h / 2 + 10, 8);
+    container.add(iconBg);
+
+    const tipoIconText = this.add
+      .text(w / 2 - 10, -h / 2 + 10, tipoConfig.icono, {
+        fontFamily: 'Orbitron',
+        fontSize: '9px',
         color: '#ffffff',
       })
       .setOrigin(0.5);
+    container.add(tipoIconText);
 
-    // Botones de navegación (a los lados de la preview)
-    const btnIzq = this.add
-      .text(panelX - 50, panelY + 5, '<', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '12px',
-        color: '#f0c030',
+    // Sprite
+    const sprite = this.add.image(0, -2, `kodamon-${kodamon.id}`);
+    sprite.setScale(0.6);
+    container.add(sprite);
+
+    // Nombre
+    const nombre = this.add
+      .text(0, 23, kodamon.nombre.toUpperCase(), {
+        fontFamily: 'Rajdhani',
+        fontSize: '7px',
+        fontStyle: 'bold',
+        color: CYBER_THEME.colors.whiteHex,
       })
+      .setOrigin(0.5);
+    container.add(nombre);
+
+    // Interactividad
+    container.setSize(w, h);
+    container.setInteractive({ useHandCursor: true });
+    container.on('pointerdown', () => this.seleccionarKodamon(index));
+    container.on('pointerover', () => this.previsualizarKodamon(index));
+
+    return container;
+  }
+
+  private crearPanelPreview(): void {
+    const panelX = this.RIGHT_PANEL_X;
+    const panelY = this.PADDING_TOP_RIGHT;
+    const panelW = 150;
+    const panelH = 145;
+
+    // Panel con estilo cyber
+    const panel = this.add.graphics();
+    drawCyberPanel(panel, panelX, panelY, panelW, panelH, {
+      accentSide: 'left',
+      accentColor: CYBER_THEME.colors.cyan,
+      cornerCut: 10,
+    });
+
+    // Título
+    this.add
+      .text(panelX + panelW / 2, panelY + 12, 'KODAMON DATA', {
+        fontFamily: 'Orbitron',
+        fontSize: '9px',
+        color: CYBER_THEME.colors.cyanHex,
+      })
+      .setOrigin(0.5);
+
+    // Sprite preview
+    this.previewSprite = this.add.image(
+      panelX + 42,
+      panelY + 65,
+      `kodamon-${this.kodamonsFiltrados[0].id}`
+    );
+    this.previewSprite.setScale(1.2);
+
+    // Nombre
+    this.previewName = this.add.text(panelX + 88, panelY + 32, '', {
+      fontFamily: 'Orbitron',
+      fontSize: '11px',
+      fontStyle: 'bold',
+      color: CYBER_THEME.colors.whiteHex,
+    });
+
+    // Tipo
+    this.previewType = this.add.text(panelX + 88, panelY + 48, '', {
+      fontFamily: 'Rajdhani',
+      fontSize: '9px',
+      color: CYBER_THEME.colors.pinkHex,
+    });
+
+    // Stats (2 columnas)
+    const statsNames = ['HP', 'ATK', 'DEF', 'SPD'];
+    const statsStartX = panelX + 88;
+    const statsStartY = panelY + 70;
+
+    statsNames.forEach((stat, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const sx = statsStartX + col * 32;
+      const sy = statsStartY + row * 20;
+
+      const label = this.add.text(sx, sy, stat, {
+        fontFamily: 'Rajdhani',
+        fontSize: '7px',
+        color: CYBER_THEME.colors.pinkHex,
+      });
+      this.statsTexts.push(label);
+
+      const value = this.add.text(sx, sy + 9, '000', {
+        fontFamily: 'Orbitron',
+        fontSize: '10px',
+        color: CYBER_THEME.colors.cyanHex,
+      });
+      this.statsValues.push(value);
+    });
+  }
+
+  private crearPanelArena(): void {
+    const panelX = this.RIGHT_PANEL_X;
+    // Position below Panel Preview (PADDING_TOP_RIGHT + 145 + 10 gap)
+    const panelY = this.PADDING_TOP_RIGHT + 155;
+    const panelW = 150;
+    const panelH = 85;
+
+    // Panel
+    const panel = this.add.graphics();
+    drawCyberPanel(panel, panelX, panelY, panelW, panelH, {
+      accentSide: 'left',
+      accentColor: CYBER_THEME.colors.pink,
+      cornerCut: 8,
+    });
+
+    // Título
+    this.add
+      .text(panelX + panelW / 2, panelY + 12, 'ARENA SELECT', {
+        fontFamily: 'Orbitron',
+        fontSize: '9px',
+        color: CYBER_THEME.colors.pinkHex,
+      })
+      .setOrigin(0.5);
+
+    // Preview del fondo
+    this.fondoPreview = this.add.image(panelX + panelW / 2, panelY + 45, FONDOS_DISPONIBLES[0].id);
+    this.fondoPreview.setDisplaySize(95, 48);
+
+    // Nombre
+    this.fondoNombreText = this.add
+      .text(panelX + panelW / 2, panelY + 75, FONDOS_DISPONIBLES[0].nombre, {
+        fontFamily: 'Rajdhani',
+        fontSize: '8px',
+        color: CYBER_THEME.colors.whiteHex,
+      })
+      .setOrigin(0.5);
+
+    // Botones navegación
+    const btnStyle = {
+      fontFamily: 'Orbitron',
+      fontSize: '16px',
+      color: CYBER_THEME.colors.cyanHex,
+    };
+
+    const btnIzq = this.add
+      .text(panelX + 12, panelY + 45, '‹', btnStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
     const btnDer = this.add
-      .text(panelX + 50, panelY + 5, '>', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '12px',
-        color: '#f0c030',
-      })
+      .text(panelX + panelW - 12, panelY + 45, '›', btnStyle)
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
     btnIzq.on('pointerdown', () => this.cambiarFondo(-1));
     btnDer.on('pointerdown', () => this.cambiarFondo(1));
-
-    btnIzq.on('pointerover', () => btnIzq.setColor('#ffffff'));
-    btnIzq.on('pointerout', () => btnIzq.setColor('#f0c030'));
-    btnDer.on('pointerover', () => btnDer.setColor('#ffffff'));
-    btnDer.on('pointerout', () => btnDer.setColor('#f0c030'));
+    btnIzq.on('pointerover', () => btnIzq.setColor(CYBER_THEME.colors.whiteHex));
+    btnIzq.on('pointerout', () => btnIzq.setColor(CYBER_THEME.colors.cyanHex));
+    btnDer.on('pointerover', () => btnDer.setColor(CYBER_THEME.colors.whiteHex));
+    btnDer.on('pointerout', () => btnDer.setColor(CYBER_THEME.colors.cyanHex));
   }
 
   private cambiarFondo(delta: number): void {
@@ -320,410 +503,141 @@ export class MenuScene extends Phaser.Scene {
     this.fondoNombreText.setText(fondo.nombre);
   }
 
-  private crearBotonAleatorio(): void {
-    const x = 155;
-    const y = 310;
+  private crearBotonesAccion(): void {
+    const btnX = this.RIGHT_PANEL_X + 75;
+    // Position below Panel Arena (PADDING_TOP_RIGHT + 155 + 85 + 25 gap)
+    const btnY = this.PADDING_TOP_RIGHT + 265;
 
-    // Fondo del botón
+    // Botón CONNECT (principal)
+    this.crearBotonCyber(btnX, btnY, 'CONNECT', true, () => this.confirmarSeleccion());
+
+    // Botón RANDOM
+    this.crearBotonCyber(btnX, btnY + 30, 'RANDOM', false, () => this.seleccionarAleatorio());
+  }
+
+  private crearBotonCyber(
+    x: number,
+    y: number,
+    texto: string,
+    primary: boolean,
+    callback: () => void
+  ): Phaser.GameObjects.Container {
+    const container = this.add.container(x, y);
+    const w = 110;
+    const h = 24;
+
     const bg = this.add.graphics();
-    bg.fillStyle(0x4a6fa5, 1);
-    bg.fillRoundedRect(x - 55, y - 12, 110, 24, 6);
-    bg.lineStyle(2, 0xf0c030, 0.8);
-    bg.strokeRoundedRect(x - 55, y - 12, 110, 24, 6);
 
-    // Texto del botón
-    const btnText = this.add
-      .text(x, y, '? ALEATORIO', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '8px',
-        color: '#ffffff',
+    const drawButton = (hover: boolean) => {
+      bg.clear();
+      if (primary) {
+        if (hover) {
+          bg.fillStyle(CYBER_THEME.colors.cyan, 1);
+        } else {
+          bg.fillGradientStyle(
+            CYBER_THEME.colors.cyan,
+            CYBER_THEME.colors.purple,
+            CYBER_THEME.colors.cyan,
+            CYBER_THEME.colors.purple,
+            1
+          );
+        }
+      } else {
+        bg.fillStyle(hover ? CYBER_THEME.colors.cyan : CYBER_THEME.colors.panel, hover ? 0.3 : 0.8);
+        bg.lineStyle(1, CYBER_THEME.colors.cyan, hover ? 1 : 0.5);
+      }
+
+      // Forma angular
+      const cut = 6;
+      bg.beginPath();
+      bg.moveTo(-w / 2 + cut, -h / 2);
+      bg.lineTo(w / 2, -h / 2);
+      bg.lineTo(w / 2 - cut, h / 2);
+      bg.lineTo(-w / 2, h / 2);
+      bg.closePath();
+      bg.fillPath();
+      if (!primary) bg.strokePath();
+    };
+
+    drawButton(false);
+    container.add(bg);
+
+    const label = this.add
+      .text(0, 0, texto, {
+        fontFamily: 'Orbitron',
+        fontSize: '11px',
+        fontStyle: 'bold',
+        color: primary ? CYBER_THEME.colors.darkHex : CYBER_THEME.colors.cyanHex,
       })
       .setOrigin(0.5);
+    container.add(label);
 
-    // Zona interactiva
-    const hitArea = this.add.zone(x, y, 110, 24).setInteractive({ useHandCursor: true });
+    container.setSize(w, h);
+    container.setInteractive({ useHandCursor: true });
+    container.on('pointerdown', callback);
+    container.on('pointerover', () => {
+      drawButton(true);
+      if (!primary) label.setColor(CYBER_THEME.colors.whiteHex);
+    });
+    container.on('pointerout', () => {
+      drawButton(false);
+      if (!primary) label.setColor(CYBER_THEME.colors.cyanHex);
+    });
 
-    hitArea.on('pointerdown', () => this.seleccionarAleatorio());
-    hitArea.on('pointerover', () => {
-      bg.clear();
-      bg.fillStyle(0xf0c030, 1);
-      bg.fillRoundedRect(x - 55, y - 12, 110, 24, 6);
-      btnText.setColor('#000000');
-    });
-    hitArea.on('pointerout', () => {
-      bg.clear();
-      bg.fillStyle(0x4a6fa5, 1);
-      bg.fillRoundedRect(x - 55, y - 12, 110, 24, 6);
-      bg.lineStyle(2, 0xf0c030, 0.8);
-      bg.strokeRoundedRect(x - 55, y - 12, 110, 24, 6);
-      btnText.setColor('#ffffff');
-    });
+    return container;
   }
 
   private seleccionarAleatorio(): void {
     if (this.kodamonsFiltrados.length === 0) return;
 
-    // Seleccionar índice aleatorio
     const randomIndex = Math.floor(Math.random() * this.kodamonsFiltrados.length);
-    this.selectedIndex = randomIndex;
-
-    // Efecto visual de "ruleta" rápida antes de mostrar el resultado
     let iterations = 0;
-    const maxIterations = 15;
-    const interval = 50;
+    const maxIterations = 12;
 
     const ruleta = this.time.addEvent({
-      delay: interval,
+      delay: 60,
       callback: () => {
         iterations++;
-        // Selección aleatoria temporal
         const tempIndex = Math.floor(Math.random() * this.kodamonsFiltrados.length);
         this.selectedIndex = tempIndex;
         this.actualizarSeleccion();
 
         if (iterations >= maxIterations) {
           ruleta.destroy();
-          // Selección final
           this.selectedIndex = randomIndex;
           this.actualizarSeleccion();
 
-          // Flash del sprite seleccionado
-          const sprite = this.kodamonSprites[this.selectedIndex];
-          this.tweens.add({
-            targets: sprite,
-            scale: 1.1,
-            duration: 150,
-            yoyo: true,
-            repeat: 1,
-            ease: 'Quad.easeOut',
-          });
+          // Flash effect
+          const card = this.kodamonCards[this.selectedIndex];
+          if (card) {
+            this.tweens.add({
+              targets: card,
+              scaleX: 1.15,
+              scaleY: 1.15,
+              duration: 100,
+              yoyo: true,
+              repeat: 1,
+            });
+          }
         }
       },
       repeat: maxIterations - 1,
     });
   }
 
-  private crearBotonComparar(): void {
-    const x = 155;
-    const y = 340;
+  private crearInstrucciones(): void {
+    // Grid bottom is at PADDING_TOP_LEFT + 120 + 70 + 30 = 275
+    // Instructions positioned below with gap for balanced bottom padding
+    const instructionsY = this.PADDING_TOP_LEFT + 250;
 
-    // Fondo del botón
-    this.btnCompararBg = this.add.graphics();
-    this.btnCompararBg.fillStyle(0x6a4a8a, 1);
-    this.btnCompararBg.fillRoundedRect(x - 55, y - 12, 110, 24, 6);
-    this.btnCompararBg.lineStyle(2, 0xf0c030, 0.8);
-    this.btnCompararBg.strokeRoundedRect(x - 55, y - 12, 110, 24, 6);
-
-    // Texto del botón
-    this.btnCompararText = this.add
-      .text(x, y, 'COMPARAR', {
-        fontFamily: '"Press Start 2P"',
+    this.add
+      .text(this.LEFT_CENTER_X, instructionsY, 'ARROWS: Move | SPACE: Select', {
+        fontFamily: 'Rajdhani',
         fontSize: '8px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-
-    // Zona interactiva
-    const hitArea = this.add.zone(x, y, 110, 24).setInteractive({ useHandCursor: true });
-
-    hitArea.on('pointerdown', () => this.toggleModoComparacion());
-    hitArea.on('pointerover', () => {
-      if (!this.modoComparacion) {
-        this.btnCompararBg.clear();
-        this.btnCompararBg.fillStyle(0xf0c030, 1);
-        this.btnCompararBg.fillRoundedRect(x - 55, y - 12, 110, 24, 6);
-        this.btnCompararText.setColor('#000000');
-      }
-    });
-    hitArea.on('pointerout', () => {
-      if (!this.modoComparacion) {
-        this.btnCompararBg.clear();
-        this.btnCompararBg.fillStyle(0x6a4a8a, 1);
-        this.btnCompararBg.fillRoundedRect(x - 55, y - 12, 110, 24, 6);
-        this.btnCompararBg.lineStyle(2, 0xf0c030, 0.8);
-        this.btnCompararBg.strokeRoundedRect(x - 55, y - 12, 110, 24, 6);
-        this.btnCompararText.setColor('#ffffff');
-      }
-    });
-  }
-
-  private toggleModoComparacion(): void {
-    const x = 155;
-    const y = 340;
-
-    this.modoComparacion = !this.modoComparacion;
-    this.kodamonComparar1 = null;
-
-    // Actualizar visual del botón
-    this.btnCompararBg.clear();
-    if (this.modoComparacion) {
-      this.btnCompararBg.fillStyle(0xff6666, 1);
-      this.btnCompararBg.fillRoundedRect(x - 55, y - 12, 110, 24, 6);
-      this.btnCompararText.setText('CANCELAR');
-      this.btnCompararText.setColor('#ffffff');
-    } else {
-      this.btnCompararBg.fillStyle(0x6a4a8a, 1);
-      this.btnCompararBg.fillRoundedRect(x - 55, y - 12, 110, 24, 6);
-      this.btnCompararBg.lineStyle(2, 0xf0c030, 0.8);
-      this.btnCompararBg.strokeRoundedRect(x - 55, y - 12, 110, 24, 6);
-      this.btnCompararText.setText('COMPARAR');
-      this.btnCompararText.setColor('#ffffff');
-    }
-  }
-
-  private seleccionarParaComparar(kodamon: KodamonData): void {
-    if (!this.kodamonComparar1) {
-      // Primer Kodamon seleccionado
-      this.kodamonComparar1 = kodamon;
-      this.btnCompararText.setText('ELIGE 2do');
-    } else {
-      // Segundo Kodamon seleccionado - mostrar comparación
-      this.mostrarComparacion(this.kodamonComparar1, kodamon);
-    }
-  }
-
-  private mostrarComparacion(k1: KodamonData, k2: KodamonData): void {
-    // Crear overlay
-    this.comparacionOverlay = this.add.container(0, 0);
-
-    // Fondo oscuro
-    const overlay = this.add.graphics();
-    overlay.fillStyle(0x000000, 0.9);
-    overlay.fillRect(0, 0, 512, 384);
-    this.comparacionOverlay.add(overlay);
-
-    // Panel central
-    const panel = this.add.graphics();
-    panel.fillStyle(0x16213e, 1);
-    panel.fillRoundedRect(30, 30, 452, 324, 12);
-    panel.lineStyle(3, 0xf0c030, 1);
-    panel.strokeRoundedRect(30, 30, 452, 324, 12);
-    this.comparacionOverlay.add(panel);
-
-    // Título
-    const titulo = this.add
-      .text(256, 50, 'COMPARACION', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '12px',
-        color: '#f0c030',
-      })
-      .setOrigin(0.5);
-    this.comparacionOverlay.add(titulo);
-
-    // === Kodamon 1 (izquierda) ===
-    const x1 = 140;
-    this.crearPanelKodamon(k1, x1, this.comparacionOverlay);
-
-    // === Kodamon 2 (derecha) ===
-    const x2 = 372;
-    this.crearPanelKodamon(k2, x2, this.comparacionOverlay);
-
-    // === Barras de comparación en el centro ===
-    const statsNames = ['HP', 'ATK', 'DEF', 'SPA', 'SPD', 'VEL'];
-    const statsKeys: (keyof KodamonData['estadisticas'])[] = [
-      'hp',
-      'ataque',
-      'defensa',
-      'ataqueEspecial',
-      'defensaEspecial',
-      'velocidad',
-    ];
-    const startY = 180;
-
-    statsKeys.forEach((key, i) => {
-      const y = startY + i * 22;
-      const val1 = k1.estadisticas[key];
-      const val2 = k2.estadisticas[key];
-
-      // Nombre del stat
-      const statLabel = this.add
-        .text(256, y, statsNames[i], {
-          fontFamily: '"Press Start 2P"',
-          fontSize: '6px',
-          color: '#aaaaaa',
-        })
-        .setOrigin(0.5);
-      this.comparacionOverlay!.add(statLabel);
-
-      // Valor y barra izquierda
-      const color1 = val1 > val2 ? 0x44ff88 : val1 < val2 ? 0xff6666 : 0xaaaaaa;
-      const bar1Bg = this.add.graphics();
-      bar1Bg.fillStyle(0x333333, 1);
-      bar1Bg.fillRoundedRect(70, y + 8, 100, 8, 2);
-      this.comparacionOverlay!.add(bar1Bg);
-
-      const bar1 = this.add.graphics();
-      bar1.fillStyle(color1, 1);
-      bar1.fillRoundedRect(70, y + 8, Math.min(100, (val1 / 150) * 100), 8, 2);
-      this.comparacionOverlay!.add(bar1);
-
-      const val1Text = this.add
-        .text(175, y + 12, `${val1}`, {
-          fontFamily: '"Press Start 2P"',
-          fontSize: '6px',
-          color: Phaser.Display.Color.IntegerToColor(color1).rgba,
-        })
-        .setOrigin(1, 0.5);
-      this.comparacionOverlay!.add(val1Text);
-
-      // Valor y barra derecha
-      const color2 = val2 > val1 ? 0x44ff88 : val2 < val1 ? 0xff6666 : 0xaaaaaa;
-      const bar2Bg = this.add.graphics();
-      bar2Bg.fillStyle(0x333333, 1);
-      bar2Bg.fillRoundedRect(342, y + 8, 100, 8, 2);
-      this.comparacionOverlay!.add(bar2Bg);
-
-      const bar2 = this.add.graphics();
-      bar2.fillStyle(color2, 1);
-      bar2.fillRoundedRect(342, y + 8, Math.min(100, (val2 / 150) * 100), 8, 2);
-      this.comparacionOverlay!.add(bar2);
-
-      const val2Text = this.add
-        .text(337, y + 12, `${val2}`, {
-          fontFamily: '"Press Start 2P"',
-          fontSize: '6px',
-          color: Phaser.Display.Color.IntegerToColor(color2).rgba,
-        })
-        .setOrigin(0, 0.5);
-      this.comparacionOverlay!.add(val2Text);
-    });
-
-    // Botón cerrar
-    const closeBtn = this.add
-      .text(256, 340, 'CERRAR', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '10px',
-        color: '#ffffff',
-        backgroundColor: '#ff4444',
-        padding: { x: 15, y: 8 },
+        color: CYBER_THEME.colors.cyanHex,
       })
       .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-
-    closeBtn.on('pointerdown', () => this.cerrarComparacion());
-    closeBtn.on('pointerover', () => closeBtn.setBackgroundColor('#ff6666'));
-    closeBtn.on('pointerout', () => closeBtn.setBackgroundColor('#ff4444'));
-    this.comparacionOverlay.add(closeBtn);
-  }
-
-  private crearPanelKodamon(
-    kodamon: KodamonData,
-    x: number,
-    container: Phaser.GameObjects.Container
-  ): void {
-    const tipoConfig = getTipoConfig(kodamon.tipo);
-
-    // Sprite
-    const sprite = this.add.image(x, 110, `kodamon-${kodamon.id}`);
-    sprite.setScale(1.2);
-    container.add(sprite);
-
-    // Nombre
-    const nombre = this.add
-      .text(x, 150, kodamon.nombre, {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '8px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-    container.add(nombre);
-
-    // Tipo
-    const tipo = this.add
-      .text(x, 165, `${tipoConfig.icono} ${tipoConfig.nombre}`, {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '6px',
-        color: tipoConfig.color,
-      })
-      .setOrigin(0.5);
-    container.add(tipo);
-  }
-
-  private cerrarComparacion(): void {
-    if (this.comparacionOverlay) {
-      this.comparacionOverlay.destroy();
-      this.comparacionOverlay = null;
-    }
-    this.modoComparacion = false;
-    this.kodamonComparar1 = null;
-
-    // Restaurar botón
-    const x = 155;
-    const y = 340;
-    this.btnCompararBg.clear();
-    this.btnCompararBg.fillStyle(0x6a4a8a, 1);
-    this.btnCompararBg.fillRoundedRect(x - 55, y - 12, 110, 24, 6);
-    this.btnCompararBg.lineStyle(2, 0xf0c030, 0.8);
-    this.btnCompararBg.strokeRoundedRect(x - 55, y - 12, 110, 24, 6);
-    this.btnCompararText.setText('COMPARAR');
-    this.btnCompararText.setColor('#ffffff');
-  }
-
-  private crearPanelInfo(): void {
-    // Panel de Vista Previa - lado derecho de la pantalla
-    const panelX = 400; // Centro del panel de preview
-
-    // Fondo del panel de vista previa
-    const g = this.add.graphics();
-    g.fillStyle(0x000000, 0.8);
-    g.fillRoundedRect(300, 70, 200, 240, 10);
-    g.lineStyle(2, 0xf0c030, 0.6);
-    g.strokeRoundedRect(300, 70, 200, 240, 10);
-
-    // Título del panel
-    this.add
-      .text(panelX, 85, 'VISTA PREVIA', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '8px',
-        color: '#f0c030',
-      })
-      .setOrigin(0.5);
-
-    // Texto de información (nombre + tipo) - justo debajo del título
-    this.infoText = this.add
-      .text(panelX, 105, '', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '7px',
-        color: '#ffffff',
-        align: 'center',
-      })
-      .setOrigin(0.5);
-
-    // Sprite de vista previa (más grande que en el grid)
-    // Se inicializa con el primer Kodamon y se actualiza en actualizarSeleccion()
-    this.previewSprite = this.add.image(panelX, 160, `kodamon-${this.kodamonsFiltrados[0].id}`);
-    this.previewSprite.setScale(1.5); // 1.5x más grande que el original
-
-    // Texto de estadísticas (formato vertical para mejor legibilidad)
-    this.statsText = this.add
-      .text(panelX, 225, '', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '6px',
-        color: '#aaaaaa',
-        align: 'left',
-        lineSpacing: 4,
-      })
-      .setOrigin(0.5);
-
-    // Descripción del Kodamon
-    this.descText = this.add
-      .text(panelX, 285, '', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '5px',
-        color: '#888888',
-        align: 'center',
-        wordWrap: { width: 180 },
-      })
-      .setOrigin(0.5);
-
-    // Instrucciones en la parte inferior de la pantalla
-    this.add
-      .text(256, 370, 'Flechas: Mover | ESPACIO: Seleccionar', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '6px',
-        color: '#666666',
-      })
-      .setOrigin(0.5);
+      .setAlpha(0.6);
   }
 
   private configurarInput(): void {
@@ -748,12 +662,7 @@ export class MenuScene extends Phaser.Scene {
   private seleccionarKodamon(index: number): void {
     this.selectedIndex = index;
     this.actualizarSeleccion();
-
-    if (this.modoComparacion) {
-      this.seleccionarParaComparar(this.kodamonsFiltrados[index]);
-    } else {
-      this.confirmarSeleccion();
-    }
+    this.confirmarSeleccion();
   }
 
   private previsualizarKodamon(index: number): void {
@@ -762,30 +671,46 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private actualizarSeleccion(): void {
+    if (this.kodamonsFiltrados.length === 0) return;
+
     const kodamon = this.kodamonsFiltrados[this.selectedIndex];
-    const sprite = this.kodamonSprites[this.selectedIndex];
+    const card = this.kodamonCards[this.selectedIndex];
+    if (!card) return;
+
     const tipoConfig = getTipoConfig(kodamon.tipo);
 
-    // Actualizar selector visual en el grid (ajustado al nuevo tamaño de sprites)
-    this.selectorRect.clear();
-    this.selectorRect.lineStyle(2, 0xf0c030, 1);
-    this.selectorRect.strokeRect(sprite.x - 30, sprite.y - 30, 60, 60);
+    // Actualizar glow del selector
+    this.selectorGlow.clear();
+    this.selectorGlow.lineStyle(2, CYBER_THEME.colors.cyan, 1);
 
-    // Actualizar sprite de vista previa
+    const w = 52;
+    const h = 64;
+    const cut = 6;
+    const cx = card.x;
+    const cy = card.y;
+
+    this.selectorGlow.beginPath();
+    this.selectorGlow.moveTo(cx - w / 2 + cut, cy - h / 2);
+    this.selectorGlow.lineTo(cx + w / 2, cy - h / 2);
+    this.selectorGlow.lineTo(cx + w / 2, cy + h / 2 - cut);
+    this.selectorGlow.lineTo(cx + w / 2 - cut, cy + h / 2);
+    this.selectorGlow.lineTo(cx - w / 2, cy + h / 2);
+    this.selectorGlow.lineTo(cx - w / 2, cy - h / 2 + cut);
+    this.selectorGlow.closePath();
+    this.selectorGlow.strokePath();
+
+    // Actualizar preview
     this.previewSprite.setTexture(`kodamon-${kodamon.id}`);
+    this.previewName.setText(kodamon.nombre.toUpperCase());
+    this.previewType.setText(tipoConfig.nombre.toUpperCase());
+    this.previewType.setColor(tipoConfig.color);
 
-    // Actualizar info (nombre + tipo)
-    this.infoText.setText(`${tipoConfig.icono} ${kodamon.nombre}`);
-
-    // Actualizar stats (formato vertical para mejor legibilidad)
+    // Actualizar stats
     const stats = kodamon.estadisticas;
-    this.statsText.setText(
-      `HP: ${stats.hp}  ATK: ${stats.ataque}  DEF: ${stats.defensa}\n` +
-        `SPA: ${stats.ataqueEspecial}  SPD: ${stats.defensaEspecial}  VEL: ${stats.velocidad}`
-    );
-
-    // Actualizar descripción
-    this.descText.setText(kodamon.descripcion);
+    const values = [stats.hp, stats.ataque, stats.defensa, stats.velocidad];
+    values.forEach((val, i) => {
+      this.statsValues[i].setText(val.toString().padStart(3, '0'));
+    });
   }
 
   private confirmarSeleccion(): void {
@@ -793,12 +718,25 @@ export class MenuScene extends Phaser.Scene {
     const kodamonSeleccionado = this.kodamonsFiltrados[this.selectedIndex];
     const fondoId = FONDOS_DISPONIBLES[this.fondoSeleccionado].id;
 
-    this.cameras.main.fade(400, 0, 0, 0);
-    this.time.delayedCall(400, () => {
-      this.scene.start('BattleScene', {
-        jugador: kodamonSeleccionado,
-        fondoId: fondoId,
-      });
+    // Efecto de transición cyber
+    const flash = this.add.graphics();
+    flash.fillStyle(CYBER_THEME.colors.cyan, 0);
+    flash.fillRect(0, 0, 512, 384);
+
+    this.tweens.add({
+      targets: flash,
+      alpha: 0.5,
+      duration: 200,
+      yoyo: true,
+      onComplete: () => {
+        this.cameras.main.fade(300, 10, 10, 26);
+        this.time.delayedCall(300, () => {
+          this.scene.start('BattleScene', {
+            jugador: kodamonSeleccionado,
+            fondoId: fondoId,
+          });
+        });
+      },
     });
   }
 }

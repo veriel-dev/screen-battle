@@ -15,6 +15,7 @@ import {
   verificarPuedeAtacar,
 } from '@systems/index';
 import { HealthBar, MoveButton, DialogBox } from '@ui/index';
+import { CYBER_THEME, drawCyberGrid } from '@ui/theme';
 
 type EstadoBatalla =
   | 'INTRO'
@@ -55,6 +56,9 @@ export class BattleScene extends Phaser.Scene {
   private dialogBox!: DialogBox;
   private moveButtons: MoveButton[] = [];
   private turnIndicator!: Phaser.GameObjects.Container;
+
+  // Cyber grid animation
+  private gridGraphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super({ key: 'BattleScene' });
@@ -107,9 +111,96 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private dibujarFondo(): void {
-    // Usar el fondo de batalla seleccionado
-    const bg = this.add.image(256, 192, this.fondoId);
-    bg.setDisplaySize(512, 384);
+    const { width, height } = this.cameras.main;
+
+    // Gradiente de fondo estilo Cyber Sleuth
+    const bg = this.add.graphics();
+    for (let i = 0; i < height; i++) {
+      const t = i / height;
+      // Gradiente: purple oscuro -> blue oscuro -> dark
+      let r: number, g: number, b: number;
+      if (t < 0.5) {
+        // Top: purple to blue
+        r = Math.floor(26 - t * 32);
+        g = Math.floor(10 + t * 16);
+        b = Math.floor(46 - t * 20);
+      } else {
+        // Bottom: blue to dark
+        r = Math.floor(10 + (t - 0.5) * 10);
+        g = Math.floor(18 + (t - 0.5) * 8);
+        b = Math.floor(36 - (t - 0.5) * 20);
+      }
+      bg.fillStyle(Phaser.Display.Color.GetColor(r, g, b));
+      bg.fillRect(0, i, width, 1);
+    }
+
+    // Cyber grid en el área de batalla (perspectiva)
+    this.gridGraphics = this.add.graphics();
+    this.dibujarCyberFloor();
+
+    // Grid de fondo sutil
+    const gridOverlay = this.add.graphics();
+    drawCyberGrid(gridOverlay, width, height, 40, 0.03);
+
+    // Animación del grid
+    this.tweens.add({
+      targets: this.gridGraphics,
+      alpha: { from: 0.6, to: 1 },
+      duration: 2000,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
+
+    // Usar el fondo de batalla seleccionado como overlay sutil
+    const bgImage = this.add.image(256, 140, this.fondoId);
+    bgImage.setDisplaySize(512, 280);
+    bgImage.setAlpha(0.15);
+
+    // Líneas decorativas
+    const deco = this.add.graphics();
+    deco.fillStyle(CYBER_THEME.colors.cyan, 0.2);
+    deco.fillRect(0, 0, width, 2);
+    deco.fillStyle(CYBER_THEME.colors.pink, 0.15);
+    deco.fillRect(0, 3, width, 1);
+  }
+
+  private dibujarCyberFloor(): void {
+    const g = this.gridGraphics;
+    g.clear();
+
+    // Simular piso con perspectiva (líneas horizontales que se acercan)
+    const startY = 200;
+    const endY = 250;
+    const lines = 8;
+
+    for (let i = 0; i <= lines; i++) {
+      const t = i / lines;
+      const y = startY + (endY - startY) * Math.pow(t, 0.7);
+      const alpha = 0.1 + t * 0.15;
+
+      g.lineStyle(1, CYBER_THEME.colors.cyan, alpha);
+      g.beginPath();
+      g.moveTo(0, y);
+      g.lineTo(512, y);
+      g.strokePath();
+    }
+
+    // Líneas verticales con perspectiva
+    const centerX = 256;
+    const vertLines = 12;
+
+    for (let i = -vertLines / 2; i <= vertLines / 2; i++) {
+      const spread = 30 + Math.abs(i) * 8;
+      const x1 = centerX + i * 20;
+      const x2 = centerX + i * spread;
+
+      g.lineStyle(1, CYBER_THEME.colors.cyan, 0.08);
+      g.beginPath();
+      g.moveTo(x1, startY);
+      g.lineTo(x2, endY);
+      g.strokePath();
+    }
   }
 
   private crearSprites(): void {
@@ -123,12 +214,18 @@ export class BattleScene extends Phaser.Scene {
     this.enemigoSprite.setAlpha(0);
     this.enemigoBaseY = enemigoFinalY;
 
+    // Añadir glow al sprite
+    this.enemigoSprite.postFX?.addGlow(CYBER_THEME.colors.cyan, 2, 0, false, 0.1, 8);
+
     // Sprite del jugador - empieza fuera de pantalla (izquierda)
     this.jugadorSprite = this.add.image(-50, jugadorFinalY, `kodamon-${this.jugador.datos.id}`);
     this.jugadorSprite.setScale(1.5);
     this.jugadorSprite.setFlipX(true);
     this.jugadorSprite.setAlpha(0);
     this.jugadorBaseY = jugadorFinalY;
+
+    // Añadir glow al sprite del jugador
+    this.jugadorSprite.postFX?.addGlow(CYBER_THEME.colors.pink, 2, 0, false, 0.1, 8);
 
     // Las animaciones idle se inician después de la animación de entrada
   }
@@ -253,20 +350,21 @@ export class BattleScene extends Phaser.Scene {
       hpActual: this.enemigo.hpActual,
     });
 
-    // Barra HP del jugador (abajo derecha)
+    // Barra HP del jugador (derecha, encima de la UI)
     this.jugadorHpBar = new HealthBar(this, {
-      x: 285,
-      y: 145,
+      x: 295,
+      y: 200,
       nombre: this.jugador.datos.nombre,
       tipo: this.jugador.datos.tipo,
       hpMax: this.jugador.datos.estadisticas.hp,
       hpActual: this.jugador.hpActual,
+      flipped: true,
     });
 
     // Caja de diálogo
     this.dialogBox = new DialogBox(this, {
       x: 10,
-      y: 252,
+      y: 305,
     });
 
     // Indicador de turno
@@ -276,38 +374,55 @@ export class BattleScene extends Phaser.Scene {
   private crearIndicadorTurno(): void {
     this.turnIndicator = this.add.container(256, -30);
 
-    // Fondo del banner
+    // Fondo del banner estilo Cyber
     const bg = this.add.graphics();
-    bg.fillStyle(0x16213e, 0.95);
-    bg.fillRoundedRect(-100, -12, 200, 24, 12);
-    bg.lineStyle(2, 0x4a6fa5);
-    bg.strokeRoundedRect(-100, -12, 200, 24, 12);
+    const w = 200;
+    const h = 26;
+    const cut = 8;
+
+    // Fondo angular
+    bg.fillStyle(CYBER_THEME.colors.panel, 0.95);
+    bg.beginPath();
+    bg.moveTo(-w / 2 + cut, -h / 2);
+    bg.lineTo(w / 2, -h / 2);
+    bg.lineTo(w / 2 - cut, h / 2);
+    bg.lineTo(-w / 2, h / 2);
+    bg.closePath();
+    bg.fillPath();
+
+    // Borde
+    bg.lineStyle(1, CYBER_THEME.colors.cyan, 0.5);
+    bg.beginPath();
+    bg.moveTo(-w / 2 + cut, -h / 2);
+    bg.lineTo(w / 2, -h / 2);
+    bg.lineTo(w / 2 - cut, h / 2);
+    bg.lineTo(-w / 2, h / 2);
+    bg.closePath();
+    bg.strokePath();
 
     // Texto del turno
     const texto = this.add
       .text(0, 0, '', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '8px',
-        color: '#ffffff',
-        stroke: '#000000',
-        strokeThickness: 2,
+        fontFamily: 'Orbitron',
+        fontSize: '10px',
+        color: CYBER_THEME.colors.whiteHex,
       })
       .setOrigin(0.5);
 
-    // Indicadores laterales (estrellas)
+    // Indicadores laterales (diamantes)
     const starLeft = this.add
-      .text(-90, 0, '★', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '10px',
-        color: '#ffdd44',
+      .text(-85, 0, '◆', {
+        fontFamily: 'Rajdhani',
+        fontSize: '12px',
+        color: CYBER_THEME.colors.cyanHex,
       })
       .setOrigin(0.5);
 
     const starRight = this.add
-      .text(90, 0, '★', {
-        fontFamily: '"Press Start 2P"',
-        fontSize: '10px',
-        color: '#ffdd44',
+      .text(85, 0, '◆', {
+        fontFamily: 'Rajdhani',
+        fontSize: '12px',
+        color: CYBER_THEME.colors.cyanHex,
       })
       .setOrigin(0.5);
 
@@ -326,7 +441,7 @@ export class BattleScene extends Phaser.Scene {
     texto.setText(`TURNO DE ${nombreKodamon.toUpperCase()}`);
 
     // Color según quién juega
-    const color = esJugador ? '#44ff88' : '#ff6666';
+    const color = esJugador ? CYBER_THEME.colors.cyanHex : CYBER_THEME.colors.pinkHex;
     starLeft.setColor(color);
     starRight.setColor(color);
 
@@ -341,13 +456,14 @@ export class BattleScene extends Phaser.Scene {
       ease: 'Back.easeOut',
     });
 
-    // Animación de estrellas
+    // Animación de pulso de diamantes
     this.tweens.add({
       targets: [starLeft, starRight],
-      angle: 360,
-      duration: 1000,
-      ease: 'Linear',
+      alpha: { from: 0.5, to: 1 },
+      duration: 500,
+      yoyo: true,
       repeat: -1,
+      ease: 'Sine.easeInOut',
     });
   }
 
@@ -498,23 +614,27 @@ export class BattleScene extends Phaser.Scene {
     // Limpiar botones anteriores
     this.ocultarBotonesMovimientos();
 
-    const startX = 10;
-    const startY = 306;
-    const buttonWidth = 120;
-    const spacing = 4;
+    const startX = 265;
+    const startY = 305;
+    const buttonWidth = 115;
+    const buttonHeight = 34;
+    const spacingX = 4;
+    const spacingY = 4;
 
     this.jugador.movimientosActuales.forEach((movData, index) => {
-      const col = index % 4;
-      const x = startX + col * (buttonWidth + spacing);
+      const col = index % 2;
+      const row = Math.floor(index / 2);
+      const x = startX + col * (buttonWidth + spacingX);
+      const y = startY + row * (buttonHeight + spacingY);
 
       // Calcular efectividad vs enemigo actual
       const efectividad = getEfectividad(movData.movimiento.tipo, this.enemigo.datos.tipo);
 
       const button = new MoveButton(this, {
         x: x,
-        y: startY,
+        y: y,
         width: buttonWidth,
-        height: 58,
+        height: buttonHeight,
         nombre: movData.movimiento.nombre,
         tipo: movData.movimiento.tipo,
         poder: movData.movimiento.poder,
@@ -826,7 +946,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   /**
-   * Muestra el daño como número flotante animado
+   * Muestra el daño como número flotante animado estilo Cyber
    *
    * @param x - Posición X del sprite
    * @param y - Posición Y del sprite
@@ -841,40 +961,39 @@ export class BattleScene extends Phaser.Scene {
     efectividad: number,
     critico: boolean = false
   ): void {
-    // Determinar estilo visual según tipo de golpe
-    // Prioridad: Crítico > Súper Efectivo > Normal > Poco Efectivo > Sin Efecto
+    // Determinar estilo visual según tipo de golpe (estilo Cyber)
     let color: string;
     let fontSize: string;
     let textoMostrar: string;
     let escalaFinal: number;
 
     if (critico) {
-      // CRÍTICO: Máxima prioridad visual
-      color = '#ff6644'; // Naranja brillante
-      fontSize = '22px';
-      textoMostrar = `-${daño}!`; // Añadir exclamación
+      // CRÍTICO: Máxima prioridad visual - Rosa brillante
+      color = CYBER_THEME.colors.pinkHex;
+      fontSize = '20px';
+      textoMostrar = `-${daño}!`;
       escalaFinal = 1.5;
     } else if (efectividad >= 2) {
-      // Súper efectivo
-      color = '#ffdd44'; // Dorado
-      fontSize = '18px';
+      // Súper efectivo - Cyan
+      color = CYBER_THEME.colors.cyanHex;
+      fontSize = '16px';
       textoMostrar = `-${daño}`;
       escalaFinal = 1.3;
     } else if (efectividad > 0 && efectividad < 1) {
-      // Poco efectivo
-      color = '#888888'; // Gris
+      // Poco efectivo - Gris
+      color = '#888888';
       fontSize = '12px';
       textoMostrar = `-${daño}`;
       escalaFinal = 1.0;
     } else if (efectividad === 0) {
-      // Sin efecto
-      color = '#444444'; // Gris oscuro
+      // Sin efecto - Gris oscuro
+      color = '#444444';
       fontSize = '10px';
       textoMostrar = `-${daño}`;
       escalaFinal = 0.8;
     } else {
-      // Normal
-      color = '#ffffff'; // Blanco
+      // Normal - Blanco
+      color = CYBER_THEME.colors.whiteHex;
       fontSize = '14px';
       textoMostrar = `-${daño}`;
       escalaFinal = 1.2;
@@ -882,13 +1001,16 @@ export class BattleScene extends Phaser.Scene {
 
     const texto = this.add
       .text(x, y - 20, textoMostrar, {
-        fontFamily: '"Press Start 2P"',
+        fontFamily: 'Orbitron',
         fontSize: fontSize,
         color: color,
-        stroke: '#000000',
-        strokeThickness: 4,
+        stroke: CYBER_THEME.colors.darkHex,
+        strokeThickness: 3,
       })
       .setOrigin(0.5);
+
+    // Añadir glow
+    texto.setShadow(0, 0, color, 8, true, true);
 
     // Si es crítico, añadir efecto de sacudida inicial
     if (critico) {
@@ -907,7 +1029,7 @@ export class BattleScene extends Phaser.Scene {
       y: y - 60,
       alpha: 0,
       scale: escalaFinal,
-      duration: critico ? 1200 : 1000, // Críticos duran más
+      duration: critico ? 1200 : 1000,
       ease: 'Power2',
       onComplete: () => texto.destroy(),
     });
@@ -1139,7 +1261,7 @@ export class BattleScene extends Phaser.Scene {
 
   private volverAlMenu(): void {
     this.time.delayedCall(1000, () => {
-      this.cameras.main.fade(400, 0, 0, 0);
+      this.cameras.main.fade(400, 10, 10, 26);
       this.time.delayedCall(400, () => {
         this.scene.start('MenuScene');
       });
