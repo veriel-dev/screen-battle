@@ -3,6 +3,8 @@ import { getAllKodamons, getTipoConfig } from '@data/index';
 import type { KodamonData, TipoElemental } from '@game-types/index';
 import { FONDOS_DISPONIBLES } from './BootScene';
 import { CYBER_THEME, drawCyberPanel, drawCyberGrid } from '@ui/theme';
+import { AudioManager } from '@systems/AudioManager';
+import { AudioControls } from '@ui/AudioControls';
 
 export class MenuScene extends Phaser.Scene {
   private kodamons: KodamonData[] = [];
@@ -28,6 +30,9 @@ export class MenuScene extends Phaser.Scene {
   // Grid animado
   private gridGraphics!: Phaser.GameObjects.Graphics;
 
+  // Audio
+  private audio!: AudioManager;
+
   // Layout constants
   private readonly LEFT_CENTER_X = 155;
   private readonly RIGHT_PANEL_X = 350;
@@ -49,6 +54,17 @@ export class MenuScene extends Phaser.Scene {
     this.filtroButtons = [];
     this.statsTexts = [];
     this.statsValues = [];
+
+    // Inicializar audio
+    this.audio = new AudioManager(this);
+    this.audio.playMusic('menu');
+
+    // Control de audio (esquina superior derecha)
+    new AudioControls(this, {
+      x: 495,
+      y: 17,
+      audio: this.audio,
+    });
 
     this.kodamons = getAllKodamons();
     this.kodamonsFiltrados = [...this.kodamons];
@@ -206,8 +222,12 @@ export class MenuScene extends Phaser.Scene {
       // Interactividad
       container.setSize(18, 14);
       container.setInteractive({ useHandCursor: true });
-      container.on('pointerdown', () => this.aplicarFiltro(tipo));
+      container.on('pointerdown', () => {
+        this.audio.playUI('click');
+        this.aplicarFiltro(tipo);
+      });
       container.on('pointerover', () => {
+        this.audio.playUI('hover');
         if (tipo !== this.filtroActual) {
           bg.clear();
           bg.fillStyle(CYBER_THEME.colors.cyan, 0.3);
@@ -360,8 +380,14 @@ export class MenuScene extends Phaser.Scene {
     // Interactividad
     container.setSize(w, h);
     container.setInteractive({ useHandCursor: true });
-    container.on('pointerdown', () => this.seleccionarKodamon(index));
-    container.on('pointerover', () => this.previsualizarKodamon(index));
+    container.on('pointerdown', () => {
+      this.audio.playUI('select');
+      this.seleccionarKodamon(index);
+    });
+    container.on('pointerover', () => {
+      this.audio.playUI('hover');
+      this.previsualizarKodamon(index);
+    });
 
     return container;
   }
@@ -493,11 +519,23 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
 
-    btnIzq.on('pointerdown', () => this.cambiarFondo(-1));
-    btnDer.on('pointerdown', () => this.cambiarFondo(1));
-    btnIzq.on('pointerover', () => btnIzq.setColor(CYBER_THEME.colors.whiteHex));
+    btnIzq.on('pointerdown', () => {
+      this.audio.playUI('click');
+      this.cambiarFondo(-1);
+    });
+    btnDer.on('pointerdown', () => {
+      this.audio.playUI('click');
+      this.cambiarFondo(1);
+    });
+    btnIzq.on('pointerover', () => {
+      this.audio.playUI('hover');
+      btnIzq.setColor(CYBER_THEME.colors.whiteHex);
+    });
     btnIzq.on('pointerout', () => btnIzq.setColor(CYBER_THEME.colors.cyanHex));
-    btnDer.on('pointerover', () => btnDer.setColor(CYBER_THEME.colors.whiteHex));
+    btnDer.on('pointerover', () => {
+      this.audio.playUI('hover');
+      btnDer.setColor(CYBER_THEME.colors.whiteHex);
+    });
     btnDer.on('pointerout', () => btnDer.setColor(CYBER_THEME.colors.cyanHex));
   }
 
@@ -580,8 +618,12 @@ export class MenuScene extends Phaser.Scene {
 
     container.setSize(w, h);
     container.setInteractive({ useHandCursor: true });
-    container.on('pointerdown', callback);
+    container.on('pointerdown', () => {
+      this.audio.playUI('select');
+      callback();
+    });
     container.on('pointerover', () => {
+      this.audio.playUI('hover');
       drawButton(true);
       if (!primary) label.setColor(CYBER_THEME.colors.whiteHex);
     });
@@ -604,6 +646,7 @@ export class MenuScene extends Phaser.Scene {
       delay: 60,
       callback: () => {
         iterations++;
+        this.audio.playUI('click');
         const tempIndex = Math.floor(Math.random() * this.kodamonsFiltrados.length);
         this.selectedIndex = tempIndex;
         this.actualizarSeleccion();
@@ -724,6 +767,9 @@ export class MenuScene extends Phaser.Scene {
     const kodamonSeleccionado = this.kodamonsFiltrados[this.selectedIndex];
     const fondoId = FONDOS_DISPONIBLES[this.fondoSeleccionado].id;
 
+    // Fade-out de música
+    this.audio.stopMusic(400);
+
     // Efecto de transición cyber
     const flash = this.add.graphics();
     flash.fillStyle(CYBER_THEME.colors.cyan, 0);
@@ -755,6 +801,11 @@ export class MenuScene extends Phaser.Scene {
 
     // Detener todos los timers
     this.time.removeAllEvents();
+
+    // Limpiar audio
+    if (this.audio) {
+      this.audio.destroy();
+    }
 
     // Limpiar arrays de referencias
     this.kodamonCards = [];

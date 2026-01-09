@@ -1,5 +1,6 @@
 import { getAllKodamons } from '@/data';
 import Phaser from 'phaser';
+import { AudioManager } from '@systems/AudioManager';
 
 // Importar assets - Fondos de batalla
 import battleBg1 from '@assets/sprites/backgrounds/battle-bg-1.png';
@@ -100,8 +101,11 @@ export class BootScene extends Phaser.Scene {
       }
     });
 
+    // Cargar archivos de audio
+    AudioManager.preloadAudio(this);
+
     console.log(
-      `[BootScene] Cargando ${Object.keys(BATTLE_BACKGROUNDS).length} fondos y ${kodamons.length} sprites...`
+      `[BootScene] Cargando ${Object.keys(BATTLE_BACKGROUNDS).length} fondos, ${kodamons.length} sprites y audio...`
     );
   }
 }

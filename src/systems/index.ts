@@ -10,3 +10,5 @@ export {
   getModificadorAtaque,
   getModificadorVelocidad,
 } from './StatusEffects';
+export { AudioManager } from './AudioManager';
+export type { UISoundType, ImpactSoundType, AudioConfig } from './AudioManager';

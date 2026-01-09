@@ -134,27 +134,27 @@ Desarrollo de un juego de batallas por turnos estilo Pokémon utilizando **Vite*
 
 ---
 
-## Fase 5: Audio
+## Fase 5: Audio ✅
 
 ### 5.1 Música
-- [ ] Música de menú de selección
-- [ ] Música de batalla
-- [ ] Música de victoria
-- [ ] Música de derrota
+- [x] Música de menú de selección
+- [x] Música de batalla
+- [x] Música de victoria
+- [x] Música de derrota
 
 ### 5.2 Efectos de Sonido
-- [ ] Sonido de selección en menú
-- [ ] Sonidos de ataques por tipo
-- [ ] Sonido de daño recibido
-- [ ] Sonido de curación
-- [ ] Sonido de victoria/derrota
+- [x] Sonido de selección en menú
+- [x] Sonidos de ataques por tipo
+- [x] Sonido de daño recibido
+- [x] Sonido de estados alterados
+- [x] Sonido de victoria/derrota
 
 ### 5.3 Sistema de Audio
-- [ ] Implementar gestor de audio
-- [ ] Controles de volumen
-- [ ] Opción de silenciar
+- [x] Implementar gestor de audio (`AudioManager`)
+- [x] Control de mute (`AudioControls`)
+- [x] Persistencia en localStorage
 
-**Entregable:** Experiencia de audio completa.
+**Entregable:** Experiencia de audio completa. ✅
 
 ---
 
@@ -210,8 +210,8 @@ Desarrollo de un juego de batallas por turnos estilo Pokémon utilizando **Vite*
 | 3 | Assets | Alta | ✅ Completada |
 | 3.5 | UI Cyber Sleuth | Alta | ✅ Completada |
 | 4 | Gameplay | Alta | ✅ Completada |
-| **5** | **Audio** | **Media** | **🔄 Próxima** |
-| 6 | Adicionales | Baja | Pendiente |
+| 5 | Audio | Media | ✅ Completada |
+| **6** | **Adicionales** | **Baja** | **🔄 Próxima** |
 | 7 | Distribución | Media | Pendiente |
 
 ---

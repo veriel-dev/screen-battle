@@ -13,6 +13,7 @@ import {
   getEstadoConfig,
   calcularDañoPorEstado,
   verificarPuedeAtacar,
+  AudioManager,
 } from '@systems/index';
 import { HealthBar, MoveButton, DialogBox } from '@ui/index';
 import { CYBER_THEME, drawCyberGrid } from '@ui/theme';
@@ -39,6 +40,9 @@ export class BattleScene extends Phaser.Scene {
 
   // Sistema de efectos
   private effects!: BattleEffects;
+
+  // Sistema de audio
+  private audio!: AudioManager;
 
   // Elementos visuales
   private jugadorSprite!: Phaser.GameObjects.Image;
@@ -89,6 +93,10 @@ export class BattleScene extends Phaser.Scene {
 
     // Inicializar sistema de efectos
     this.effects = new BattleEffects(this);
+
+    // Inicializar sistema de audio y música de batalla
+    this.audio = new AudioManager(this);
+    this.audio.playMusic('battle');
 
     this.dibujarFondo();
     this.crearSprites();
@@ -711,6 +719,9 @@ export class BattleScene extends Phaser.Scene {
 
       // Animación de lunge del atacante, luego efecto de partículas
       this.animarAtaque(true).then(() => {
+        // Sonido de ataque según tipo
+        this.audio.playAttack(movData.movimiento.tipo);
+
         // Efecto de ataque con partículas
         this.effects.atacar(
           movData.movimiento.tipo,
@@ -719,6 +730,9 @@ export class BattleScene extends Phaser.Scene {
           () => {
             // Efecto de daño recibido
             this.effects.recibirDano(this.enemigoSprite);
+
+            // Sonido de impacto
+            this.audio.playImpact(efectividad, critico);
 
             // Mostrar número de daño flotante (pasamos critico para el efecto visual)
             this.mostrarDañoFlotante(
@@ -753,7 +767,9 @@ export class BattleScene extends Phaser.Scene {
                   // Actualizar indicador visual de estado
                   this.enemigoHpBar.setEstado(this.enemigo.estadoAlterado);
                   const config = getEstadoConfig(this.enemigo.estadoAlterado);
-                  if (config) {
+                  if (config && this.enemigo.estadoAlterado) {
+                    // Sonido de estado aplicado
+                    this.audio.playState(this.enemigo.estadoAlterado);
                     this.mostrarDialogo(
                       `¡${this.enemigo.datos.nombre} ha sido ${config.nombre.toLowerCase()}!`,
                       finalizarTurno
@@ -1046,6 +1062,9 @@ export class BattleScene extends Phaser.Scene {
         this.enemigoIdleTween.stop();
         this.enemigoSprite.y = this.enemigoBaseY;
       }
+      // Cambiar a música de victoria
+      this.audio.transitionMusic('victory', 800);
+
       // Efecto de derrota del enemigo
       this.effects.derrotaKodamon(this.enemigoSprite);
       this.mostrarDialogo(`¡${this.enemigo.datos.nombre} se debilitó!`, () => {
@@ -1167,6 +1186,9 @@ export class BattleScene extends Phaser.Scene {
 
       // Animación de lunge del atacante, luego efecto de partículas
       this.animarAtaque(false).then(() => {
+        // Sonido de ataque según tipo
+        this.audio.playAttack(movData.movimiento.tipo);
+
         // Efecto de ataque con partículas
         this.effects.atacar(
           movData.movimiento.tipo,
@@ -1175,6 +1197,9 @@ export class BattleScene extends Phaser.Scene {
           () => {
             // Efecto de daño recibido
             this.effects.recibirDano(this.jugadorSprite);
+
+            // Sonido de impacto
+            this.audio.playImpact(efectividad, critico);
 
             // Mostrar número de daño flotante (pasamos critico para el efecto visual)
             this.mostrarDañoFlotante(
@@ -1209,7 +1234,9 @@ export class BattleScene extends Phaser.Scene {
                   // Actualizar indicador visual de estado
                   this.jugadorHpBar.setEstado(this.jugador.estadoAlterado);
                   const config = getEstadoConfig(this.jugador.estadoAlterado);
-                  if (config) {
+                  if (config && this.jugador.estadoAlterado) {
+                    // Sonido de estado aplicado
+                    this.audio.playState(this.jugador.estadoAlterado);
                     this.mostrarDialogo(
                       `¡${this.jugador.datos.nombre} ha sido ${config.nombre.toLowerCase()}!`,
                       finalizarTurno
@@ -1250,6 +1277,9 @@ export class BattleScene extends Phaser.Scene {
         this.jugadorIdleTween.stop();
         this.jugadorSprite.y = this.jugadorBaseY;
       }
+      // Cambiar a música de derrota
+      this.audio.transitionMusic('defeat', 800);
+
       // Efecto de derrota del jugador
       this.effects.derrotaKodamon(this.jugadorSprite);
       this.mostrarDialogo(`¡${this.jugador.datos.nombre} se debilitó!`, () => {
@@ -1264,6 +1294,9 @@ export class BattleScene extends Phaser.Scene {
 
   private volverAlMenu(): void {
     this.time.delayedCall(1000, () => {
+      // Fade-out de música
+      this.audio.stopMusic(400);
+
       this.cameras.main.fade(400, 10, 10, 26);
       this.time.delayedCall(400, () => {
         this.scene.start('MenuScene');
@@ -1280,6 +1313,11 @@ export class BattleScene extends Phaser.Scene {
 
     // Detener todos los timers
     this.time.removeAllEvents();
+
+    // Limpiar audio
+    if (this.audio) {
+      this.audio.destroy();
+    }
 
     // Limpiar postFX de los sprites para evitar errores de renderizado
     if (this.jugadorSprite?.postFX) {

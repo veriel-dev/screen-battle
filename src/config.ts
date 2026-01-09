@@ -18,4 +18,8 @@ export const gameConfig: Phaser.Types.Core.GameConfig = {
       debug: false,
     },
   },
+  audio: {
+    disableWebAudio: false,
+    noAudio: false,
+  },
 };
