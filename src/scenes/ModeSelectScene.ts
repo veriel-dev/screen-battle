@@ -66,8 +66,9 @@ export class ModeSelectScene extends Phaser.Scene {
   create(): void {
     const { width, height } = CYBER_THEME.canvas;
 
-    // Inicializar audio
+    // Inicializar audio y reproducir música del menú
     this.audio = new AudioManager(this);
+    this.audio.playMusic('menu');
 
     // Fondo
     this.add.rectangle(0, 0, width, height, CYBER_THEME.colors.dark).setOrigin(0);
@@ -411,6 +412,8 @@ export class ModeSelectScene extends Phaser.Scene {
       battleData.survivalState = survivalState;
     } else if (this.selectedMode === 'multijugador') {
       // Para multijugador, ir a selección del jugador 2
+      // Detener toda música antes de cambiar de escena
+      this.sound.stopAll();
       this.scene.start('MenuScene', {
         mode: 'player2Select',
         player1KodamonId: this.playerKodamonId,
@@ -422,12 +425,20 @@ export class ModeSelectScene extends Phaser.Scene {
     // Fade out y cambiar a escena de batalla
     this.cameras.main.fadeOut(300);
     this.cameras.main.once('camerafadeoutcomplete', () => {
-      this.audio.stopMusic(0);
+      // Detener toda música usando el sound manager global de Phaser
+      // (necesario porque cada escena tiene su propio AudioManager)
+      this.sound.stopAll();
       this.scene.start('BattleScene', battleData);
     });
   }
 
   shutdown(): void {
+    // Limpiar audio
+    if (this.audio) {
+      this.audio.destroy();
+    }
+
+    // Limpiar arrays
     this.modeButtons = [];
   }
 }

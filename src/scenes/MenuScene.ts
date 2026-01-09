@@ -834,6 +834,8 @@ export class MenuScene extends Phaser.Scene {
               playerKodamonId: kodamonSeleccionado.id,
               arenaId: fondoId,
             };
+            // Detener música antes de cambiar de escena
+            this.sound.stopAll();
             this.scene.start('ModeSelectScene', modeData);
           }
         });

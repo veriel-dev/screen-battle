@@ -1440,9 +1440,9 @@ export class BattleScene extends Phaser.Scene {
         if (tournamentResult.continueToNext && tournamentResult.nextBattleData) {
           // Continuar al siguiente combate del torneo
           this.mostrarDialogo(`¡Preparando siguiente ronda!`, () => {
-            this.audio.stopMusic(400);
             this.cameras.main.fade(400, 10, 10, 26);
             this.time.delayedCall(400, () => {
+              this.sound.stopAll();
               this.scene.start('BattleScene', tournamentResult.nextBattleData);
             });
           });
@@ -1461,9 +1461,9 @@ export class BattleScene extends Phaser.Scene {
           // Continuar a la siguiente oleada
           const hpRecuperado = Math.floor(this.jugador.datos.estadisticas.hp * 0.5);
           this.mostrarDialogo(`¡Oleada completada! +${hpRecuperado} HP`, () => {
-            this.audio.stopMusic(400);
             this.cameras.main.fade(400, 10, 10, 26);
             this.time.delayedCall(400, () => {
+              this.sound.stopAll();
               this.scene.start('BattleScene', survivalResult.nextBattleData);
             });
           });
@@ -1489,9 +1489,10 @@ export class BattleScene extends Phaser.Scene {
    * Ir al menú principal con fade out
    */
   private irAMenuPrincipal(): void {
-    this.audio.stopMusic(400);
     this.cameras.main.fade(400, 10, 10, 26);
     this.time.delayedCall(400, () => {
+      // Detener toda música antes de ir al menú
+      this.sound.stopAll();
       this.scene.start('MenuScene');
     });
   }

@@ -37,9 +37,12 @@ export class AudioControls extends Phaser.GameObjects.Container {
       .setOrigin(0.5);
     this.add(this.speakerIcon);
 
-    // Interactividad
-    this.setSize(24, 24);
-    this.setInteractive({ useHandCursor: true });
+    // Interactividad - hitArea centrado en el origen del container
+    this.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(-12, -12, 24, 24),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+    });
 
     this.on('pointerdown', () => this.toggleMute());
     this.on('pointerover', () => {
